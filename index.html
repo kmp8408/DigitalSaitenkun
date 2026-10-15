@@ -1,0 +1,2553 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>でじたる採点くん</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script>
+  <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js"></script>
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; user-select: none; }
+    .checkerboard {
+      background-color: #1e293b;
+      background-image: 
+        linear-gradient(45deg, #0f172a 25%, transparent 25%), 
+        linear-gradient(-45deg, #0f172a 25%, transparent 25%), 
+        linear-gradient(45deg, transparent 75%, #0f172a 75%), 
+        linear-gradient(-45deg, transparent 75%, #0f172a 75%);
+      background-size: 20px 20px;
+      background-position: 0 0, 0 10px, 10px -10px, -10px 0px;
+    }
+    #viewport-container { cursor: crosshair; }
+    #viewport-container.panning { cursor: grab; }
+    #viewport-container.is-panning { cursor: grabbing !important; }
+    .active-card {
+      outline: 4px solid #6366f1 !important;
+      outline-offset: 2px;
+      transform: scale(1.02);
+      z-index: 10;
+    }
+    .mismatch-card {
+      border-color: #ef4444 !important;
+      background-color: rgba(239, 68, 68, 0.15) !important;
+    }
+    .peeking-window { cursor: grab; user-select: none; }
+    .peeking-window:active { cursor: grabbing; }
+    .drag-over-overlay {
+      outline: 4px dashed #6366f1 !important;
+      outline-offset: -8px;
+      background-color: rgba(99, 102, 241, 0.15) !important;
+    }
+  </style>
+</head>
+<body class="h-screen w-screen flex flex-col bg-slate-900 text-slate-100 overflow-hidden">
+
+  <!-- ================= 最上部：ナビゲーション ================= -->
+  <nav class="h-12 bg-slate-950 border-b border-slate-800 flex items-center justify-between px-4 shrink-0 z-30">
+    <div class="flex items-center space-x-3">
+      <div class="bg-indigo-600 p-1.5 rounded-lg text-white font-bold flex items-center justify-center w-7 h-7 shadow">
+        <i class="fa-solid fa-pen-ruler text-xs"></i>
+      </div>
+      <span class="font-bold text-sm tracking-wide text-white">でじたる採点くん</span>
+      <span class="text-[10px] bg-slate-800 text-slate-400 px-2 py-0.5 rounded font-mono">Ver 2.5 統合版</span>
+      <span id="autosave-indicator" class="text-[10px] text-emerald-400 flex items-center space-x-1 ml-2">
+        <i class="fa-solid fa-cloud-arrow-up"></i><span>自動保存済</span>
+      </span>
+    </div>
+
+    <!-- ステップ切り替えタブ -->
+    <div class="flex items-center bg-slate-900 p-1 rounded-xl border border-slate-800 space-x-1">
+      <button id="tab-step1-btn" class="px-4 py-1 rounded-lg text-xs font-bold transition flex items-center space-x-2 bg-indigo-600 text-white shadow">
+        <span class="w-4 h-4 rounded-full bg-white/20 flex items-center justify-center text-[10px]">1</span>
+        <span>模範解答・枠設定</span>
+      </button>
+      <button id="tab-step2-btn" class="px-4 py-1 rounded-lg text-xs font-bold transition flex items-center space-x-2 text-slate-400 hover:text-slate-200">
+        <span class="w-4 h-4 rounded-full bg-slate-800 flex items-center justify-center text-[10px]">2</span>
+        <span>串刺し採点 ＆ 返却PDF</span>
+      </button>
+    </div>
+
+    <!-- 共有ユーティリティ -->
+    <div class="flex items-center space-x-2 text-xs">
+      <button id="global-export-json-btn" class="px-2.5 py-1 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded border border-slate-700 transition flex items-center space-x-1" title="枠定義と模範画像をJSONファイルとして保存">
+        <i class="fa-solid fa-download text-[11px] text-indigo-400"></i>
+        <span>JSON保存</span>
+      </button>
+      <label class="cursor-pointer px-2.5 py-1 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded border border-slate-700 transition flex items-center space-x-1" title="過去に保存したJSONファイルを読み込む">
+        <i class="fa-solid fa-upload text-[11px] text-indigo-400"></i>
+        <span>JSON読込</span>
+        <input type="file" id="global-import-json-input" accept=".json" class="hidden">
+      </label>
+      <button id="clear-cache-btn" class="px-2 py-1 bg-slate-800 hover:bg-rose-900/60 text-slate-400 hover:text-rose-200 rounded border border-slate-700 transition text-[11px]" title="ブラウザ内に自動保存された途中データを全消去">
+        <i class="fa-solid fa-trash mr-1"></i>データ初期化
+      </button>
+    </div>
+  </nav>
+
+  <!-- ================= VIEW 1: ステップA（枠設定エディタ） ================= -->
+  <div id="view-step1" class="flex-1 flex flex-col overflow-hidden relative">
+    <header class="h-12 bg-slate-800 border-b border-slate-700 flex items-center justify-between px-3 z-20 shrink-0 gap-2">
+      <div class="flex items-center bg-slate-900/90 rounded-lg p-1 space-x-1 border border-slate-700 text-xs overflow-x-auto">
+        <span class="text-[10px] text-slate-400 font-bold px-1.5 shrink-0"><i class="fa-solid fa-pen mr-1"></i>描画枠:</span>
+        <button data-cat="question" class="draw-cat-btn px-2 py-0.5 rounded bg-indigo-600 text-white font-bold flex items-center space-x-1 transition shrink-0">
+          <i class="fa-solid fa-circle-question text-[10px]"></i><span>設問</span>
+        </button>
+        <button data-cat="student_num" class="draw-cat-btn px-2 py-0.5 rounded hover:bg-slate-700 text-amber-400 font-bold flex items-center space-x-1 transition shrink-0">
+          <i class="fa-solid fa-id-card text-[10px]"></i><span>出席番号</span>
+        </button>
+        <button data-cat="student_name" class="draw-cat-btn px-2 py-0.5 rounded hover:bg-slate-700 text-teal-400 font-bold flex items-center space-x-1 transition shrink-0">
+          <i class="fa-solid fa-user text-[10px]"></i><span>氏名欄</span>
+        </button>
+        <button data-cat="total_score" class="draw-cat-btn px-2 py-0.5 rounded hover:bg-slate-700 text-rose-400 font-bold flex items-center space-x-1 transition shrink-0">
+          <i class="fa-solid fa-calculator text-[10px]"></i><span>合計点</span>
+        </button>
+        <button data-cat="aspect_k_score" class="draw-cat-btn px-2 py-0.5 rounded hover:bg-slate-700 text-sky-400 font-bold flex items-center space-x-1 transition shrink-0">
+          <i class="fa-solid fa-book text-[10px]"></i><span>知計</span>
+        </button>
+        <button data-cat="aspect_t_score" class="draw-cat-btn px-2 py-0.5 rounded hover:bg-slate-700 text-purple-400 font-bold flex items-center space-x-1 transition shrink-0">
+          <i class="fa-solid fa-brain text-[10px]"></i><span>思計</span>
+        </button>
+        <button data-cat="other" class="draw-cat-btn px-2 py-0.5 rounded hover:bg-slate-700 text-slate-400 font-bold flex items-center space-x-1 transition shrink-0">
+          <i class="fa-solid fa-shapes text-[10px]"></i><span>その他</span>
+        </button>
+        <div class="w-px h-4 bg-slate-700 mx-1 shrink-0"></div>
+        <button id="s1-tool-pan-btn" class="px-2 py-0.5 rounded hover:bg-slate-700 text-slate-300 font-medium flex items-center space-x-1 transition shrink-0">
+          <i class="fa-solid fa-hand text-[10px]"></i><span>移動</span>
+        </button>
+      </div>
+
+      <div class="flex items-center space-x-2 shrink-0">
+        <div class="flex items-center bg-slate-700/80 rounded-lg p-0.5 space-x-1 border border-slate-600 text-xs">
+          <button id="s1-zoom-out-btn" class="p-1 hover:bg-slate-600 rounded text-slate-200"><i class="fa-solid fa-minus text-[10px]"></i></button>
+          <span id="s1-zoom-text" class="w-10 text-center font-mono font-bold text-indigo-300 text-[11px]">100%</span>
+          <button id="s1-zoom-in-btn" class="p-1 hover:bg-slate-600 rounded text-slate-200"><i class="fa-solid fa-plus text-[10px]"></i></button>
+          <button id="s1-fit-btn" class="px-1.5 py-0.5 hover:bg-slate-600 rounded text-slate-200 text-[10px] font-semibold">全体</button>
+        </div>
+
+        <label class="cursor-pointer bg-slate-700 hover:bg-slate-600 text-slate-200 text-xs font-semibold px-2.5 py-1.5 rounded-lg border border-slate-600 flex items-center space-x-1 transition" title="画面へのドラッグ＆ドロップでも読み込めます">
+          <i class="fa-solid fa-file-arrow-up text-indigo-400"></i>
+          <span>用紙読込 (Drop可)</span>
+          <input type="file" id="s1-file-input" accept=".pdf,image/png,image/jpeg,image/webp" class="hidden">
+        </label>
+
+        <div class="flex items-center bg-emerald-950/60 border border-emerald-700/60 rounded-lg p-0.5">
+          <button id="s1-btn-export-excel" class="px-2 py-0.5 hover:bg-emerald-800 text-emerald-200 rounded text-xs font-semibold flex items-center space-x-1 transition" title="設問一覧をExcel出力">
+            <i class="fa-solid fa-file-excel text-emerald-400"></i><span>書出</span>
+          </button>
+          <label class="cursor-pointer px-2 py-0.5 hover:bg-emerald-800 text-emerald-200 rounded text-xs font-semibold flex items-center space-x-1 transition" title="編集済みExcelを読込">
+            <i class="fa-solid fa-file-import text-emerald-400"></i><span>読込</span>
+            <input type="file" id="s1-excel-input" accept=".xlsx,.xls,.csv" class="hidden">
+          </label>
+        </div>
+
+        <button id="proceed-to-step2-btn" class="bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold px-3 py-1.5 rounded-lg shadow transition flex items-center space-x-1.5">
+          <span>採点へ進む</span>
+          <i class="fa-solid fa-arrow-right"></i>
+        </button>
+      </div>
+    </header>
+
+    <div class="flex-1 flex overflow-hidden relative">
+      <div id="viewport-container" class="flex-1 relative overflow-hidden checkerboard">
+        <div id="canvas-wrapper" class="absolute top-0 left-0 origin-top-left shadow-2xl transition-transform duration-75" style="transform: matrix(1, 0, 0, 1, 0, 0);">
+          <canvas id="paper-canvas" class="block bg-white shadow-lg"></canvas>
+          <svg id="svg-overlay" class="absolute top-0 left-0 w-full h-full pointer-events-auto"></svg>
+        </div>
+
+        <div id="s1-empty-state" class="absolute inset-0 flex flex-col items-center justify-center bg-slate-900/80 z-10 pointer-events-none">
+          <div class="p-6 max-w-md text-center bg-slate-800/90 rounded-2xl border border-slate-700 backdrop-blur pointer-events-auto shadow-2xl">
+            <i class="fa-solid fa-file-lines text-5xl text-indigo-400 mb-4 block"></i>
+            <h2 class="text-lg font-bold text-white mb-2">模範解答用紙を読み込んでください</h2>
+            <p class="text-xs text-slate-400 leading-relaxed mb-5">
+              スキャンした模範解答のPDFまたは画像を選択するか、<span class="text-indigo-300 font-bold">画面上に直接ドラッグ＆ドロップ</span>してください。
+            </p>
+            <button onclick="document.getElementById('s1-file-input').click()" class="w-full py-2.5 bg-indigo-600 hover:bg-indigo-500 rounded-lg text-white font-semibold text-sm transition shadow">
+              ファイルを選択する
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 1 サイドバー -->
+      <div class="w-80 bg-slate-800 border-l border-slate-700 flex flex-col shrink-0 z-20 text-xs">
+        <div class="p-3 border-b border-slate-700 bg-slate-800/95 flex flex-col space-y-2">
+          <div class="flex items-center justify-between">
+            <div class="flex items-center space-x-1.5">
+              <span class="font-bold text-sm text-white">登録枠一覧</span>
+              <span id="s1-box-count" class="px-2 py-0.5 bg-indigo-900 text-indigo-300 font-mono rounded-full font-bold">0</span>
+            </div>
+            <div class="flex items-center space-x-1.5 bg-slate-900/80 px-2 py-1 rounded-full border border-slate-700">
+              <span class="text-[10px] text-slate-400 font-medium">観点評価</span>
+              <label class="relative inline-flex items-center cursor-pointer">
+                <input type="checkbox" id="s1-aspect-switch" class="sr-only peer" checked>
+                <div class="w-7 h-4 bg-slate-600 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-3 after:w-3 after:transition-all peer-checked:bg-indigo-600"></div>
+              </label>
+            </div>
+          </div>
+          <div class="flex justify-between items-center pt-1 border-t border-slate-700/60 font-mono">
+            <div class="text-slate-300">合計点: <span id="s1-total-points" class="text-amber-400 font-bold text-sm">0</span> 点</div>
+            <div id="s1-aspect-summary-container" class="flex items-center space-x-2 text-[11px]">
+              <div><span class="text-sky-400 font-bold">知:</span> <span id="s1-knowledge-points" class="font-bold text-white">0</span></div>
+              <div><span class="text-purple-400 font-bold">思:</span> <span id="s1-thinking-points" class="font-bold text-white">0</span></div>
+            </div>
+          </div>
+        </div>
+
+        <div id="s1-selection-panel" class="p-3 border-b border-slate-700 bg-slate-750 hidden">
+          <div class="flex justify-between items-center mb-2">
+            <span class="font-bold text-indigo-300 flex items-center space-x-1">
+              <i class="fa-solid fa-pen-to-square"></i><span id="s1-sel-title">枠 編集</span>
+            </span>
+            <button id="s1-del-box-btn" class="text-rose-400 hover:text-rose-300 p-1 font-bold" title="削除 (Delete)">
+              <i class="fa-solid fa-trash-can"></i>
+            </button>
+          </div>
+          <div class="space-y-2">
+            <div>
+              <label class="block text-slate-400 text-[10px] mb-1">枠の種別を変更</label>
+              <div class="grid grid-cols-4 gap-1 text-[10px] font-bold text-center" id="s1-change-cat-group">
+                <button data-cat="question" class="py-1 rounded border border-indigo-500 bg-indigo-600/30 text-indigo-200">設問</button>
+                <button data-cat="student_num" class="py-1 rounded border border-amber-600/60 bg-amber-600/20 text-amber-300">番号</button>
+                <button data-cat="student_name" class="py-1 rounded border border-teal-600/60 bg-teal-600/20 text-teal-300">氏名</button>
+                <button data-cat="total_score" class="py-1 rounded border border-rose-600/60 bg-rose-600/20 text-rose-300">合計点</button>
+                <button data-cat="aspect_k_score" class="py-1 rounded border border-sky-600/60 bg-sky-600/20 text-sky-300">知計</button>
+                <button data-cat="aspect_t_score" class="py-1 rounded border border-purple-600/60 bg-purple-600/20 text-purple-300">思計</button>
+                <button data-cat="other" class="py-1 rounded border border-slate-600 bg-slate-700 text-slate-300 col-span-2">その他</button>
+              </div>
+            </div>
+            <div class="grid grid-cols-2 gap-2">
+              <div>
+                <label class="block text-slate-400 text-[10px] mb-0.5">枠名称 / 設問番号</label>
+                <input type="text" id="s1-prop-id" placeholder="例: 1-1, 1(1)a" class="w-full bg-slate-900 border border-slate-600 rounded px-2 py-1 text-white font-mono text-xs focus:border-indigo-500 outline-none">
+              </div>
+              <div id="s1-points-container">
+                <label class="block text-slate-400 text-[10px] mb-0.5">配点</label>
+                <input type="number" id="s1-prop-points" min="0" value="2" class="w-full bg-slate-900 border border-slate-600 rounded px-2 py-1 text-white font-mono text-xs focus:border-indigo-500 outline-none">
+              </div>
+            </div>
+            <div id="s1-rubric-container">
+              <label class="block text-slate-400 text-[10px] mb-0.5">採点基準メモ</label>
+              <textarea id="s1-prop-rubric" rows="2" placeholder="例: 単位抜けは-1点、向き不問" class="w-full bg-slate-900 border border-slate-600 rounded p-1.5 text-white text-[11px] focus:border-indigo-500 outline-none resize-none"></textarea>
+            </div>
+            <div id="s1-aspect-field-container">
+              <label class="block text-slate-400 text-[10px] mb-0.5">観点別評価</label>
+              <div class="grid grid-cols-2 gap-1.5">
+                <button id="s1-btn-aspect-knowledge" class="py-1 px-2 rounded border border-sky-500 bg-sky-600/30 text-sky-200 font-semibold text-center transition">
+                  <i class="fa-solid fa-book-open mr-1"></i>知識・技能
+                </button>
+                <button id="s1-btn-aspect-thinking" class="py-1 px-2 rounded border border-slate-600 hover:border-slate-500 text-slate-300 text-center transition">
+                  <i class="fa-solid fa-brain mr-1"></i>思考・判断
+                </button>
+              </div>
+            </div>
+            <div class="pt-1">
+              <div class="grid grid-cols-2 gap-1.5">
+                <button id="s1-clone-down-btn" class="py-1 bg-slate-700 hover:bg-slate-600 rounded text-slate-200 border border-slate-600 font-medium text-[11px] transition">
+                  <i class="fa-solid fa-arrow-down mr-1"></i>下へ複製
+                </button>
+                <button id="s1-clone-right-btn" class="py-1 bg-slate-700 hover:bg-slate-600 rounded text-slate-200 border border-slate-600 font-medium text-[11px] transition">
+                  <i class="fa-solid fa-arrow-right mr-1"></i>右へ複製
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="px-3 py-1 bg-slate-850 border-b border-slate-700 flex items-center justify-between text-[11px] text-slate-400">
+          <label class="flex items-center space-x-1.5 cursor-pointer hover:text-slate-200">
+            <input type="checkbox" id="s1-select-all-checkbox" class="rounded bg-slate-900 border-slate-600">
+            <span>全選択 / 解除</span>
+          </label>
+          <span id="s1-selected-summary-text">0枠 選択</span>
+        </div>
+        <div id="s1-boxes-list" class="flex-1 overflow-y-auto p-2 space-y-1.5"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= VIEW 2: ステップB（串刺し採点ワークスペース） ================= -->
+  <div id="view-step2" class="flex-1 flex flex-col overflow-hidden hidden relative">
+    <header class="h-12 bg-slate-800 border-b border-slate-700 flex items-center justify-between px-3 z-20 shrink-0 gap-2">
+      <div class="flex items-center space-x-2 shrink-0">
+        <button id="back-to-step1-btn" class="px-2.5 py-1 bg-slate-700 hover:bg-slate-600 text-slate-200 rounded text-xs font-semibold flex items-center space-x-1 transition">
+          <i class="fa-solid fa-arrow-left"></i><span>枠設定へ戻る</span>
+        </button>
+        <div class="flex items-center space-x-1 bg-slate-900/90 px-2 py-0.5 rounded-lg border border-slate-700">
+          <button id="s2-prev-q-btn" class="p-1 hover:bg-slate-700 rounded text-slate-300" title="前の設問 (PageUp)"><i class="fa-solid fa-chevron-left text-xs"></i></button>
+          <span class="text-xs text-slate-400 font-bold mx-1">設問:</span>
+          <select id="s2-question-select" class="bg-slate-800 text-indigo-300 font-bold font-mono text-xs border border-slate-600 rounded px-2 py-0.5 outline-none cursor-pointer">
+            <option value="">テンプレート未設定</option>
+          </select>
+          <button id="s2-next-q-btn" class="p-1 hover:bg-slate-700 rounded text-slate-300" title="次の設問 (PageDown)"><i class="fa-solid fa-chevron-right text-xs"></i></button>
+        </div>
+        <div id="s2-q-meta-badges" class="flex items-center space-x-1 text-xs"></div>
+      </div>
+
+      <!-- 中央：ダブル採点切替 -->
+      <div class="flex items-center space-x-2 bg-slate-900/80 px-2.5 py-0.5 rounded-lg border border-slate-700">
+        <div class="flex items-center space-x-1.5 pr-2 border-r border-slate-700">
+          <span class="text-[11px] text-slate-300 font-bold">ダブル採点</span>
+          <label class="relative inline-flex items-center cursor-pointer">
+            <input type="checkbox" id="s2-double-mode-toggle" class="sr-only peer">
+            <div class="w-7 h-4 bg-slate-600 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-3 after:w-3 after:transition-all peer-checked:bg-indigo-600"></div>
+          </label>
+        </div>
+        <div class="flex items-center space-x-1">
+          <button id="s2-btn-stream-1" class="px-2.5 py-1 rounded font-bold text-xs bg-indigo-600 text-white shadow transition flex items-center space-x-1">
+            <i class="fa-solid fa-user-pen text-[10px]"></i><span>系統1 (A)</span>
+          </button>
+          <button id="s2-btn-stream-2" class="px-2.5 py-1 rounded font-bold text-xs bg-slate-800 hover:bg-slate-700 text-slate-400 border border-slate-700 transition flex items-center space-x-1">
+            <i class="fa-solid fa-user-check text-[10px]"></i><span>系統2 (B)</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- 右側アクション -->
+      <div class="flex items-center space-x-1.5 shrink-0">
+        <label class="cursor-pointer bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold px-2.5 py-1 rounded-lg shadow flex items-center space-x-1 transition" title="画面へのドラッグ＆ドロップでも読み込めます">
+          <i class="fa-solid fa-file-pdf"></i>
+          <span>答案PDF (Drop可)</span>
+          <input type="file" id="s2-students-pdf-input" accept=".pdf" class="hidden">
+        </label>
+        <button id="s2-open-num-modal-btn" class="bg-amber-600 hover:bg-amber-500 text-white text-xs font-bold px-2 py-1 rounded-lg shadow flex items-center space-x-1 transition">
+          <i class="fa-solid fa-id-card-clip"></i>
+          <span>番号確認</span>
+        </button>
+        <div class="flex flex-col items-end px-1.5 border-l border-slate-700">
+          <div class="flex items-center space-x-1 text-[10px] font-mono">
+            <span id="s2-stream-label-progress" class="text-indigo-400 font-bold">系統1:</span>
+            <span id="s2-progress-text" class="font-bold text-emerald-400">0/0</span>
+          </div>
+          <div class="w-16 h-1.5 bg-slate-700 rounded-full overflow-hidden mt-0.5">
+            <div id="s2-progress-bar" class="h-full bg-emerald-500 transition-all duration-200" style="width: 0%"></div>
+          </div>
+        </div>
+        <button id="s2-export-results-btn" class="bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold px-2 py-1 rounded-lg shadow flex items-center space-x-1 transition" title="成績一覧Excel出力">
+          <i class="fa-solid fa-file-excel"></i><span>Excel</span>
+        </button>
+        <button id="s2-export-return-pdf-btn" class="bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold px-2.5 py-1 rounded-lg shadow flex items-center space-x-1 transition" title="生徒返却用PDF一括生成">
+          <i class="fa-solid fa-stamp"></i><span>返却PDF</span>
+        </button>
+      </div>
+    </header>
+
+    <!-- ★ 模範解答 ＆ ルーブリック 常時ピン留めパネル (キーカスタム対応) ★ -->
+    <div class="h-28 bg-slate-800/95 border-b border-indigo-900/60 flex items-center px-4 py-2 space-x-4 z-10 shrink-0 shadow-md">
+      <div class="flex flex-col h-full shrink-0">
+        <span class="text-[10px] font-bold text-indigo-300 mb-1 flex items-center">
+          <i class="fa-solid fa-star text-amber-400 mr-1"></i>模範解答 (常時表示)
+        </span>
+        <div id="s2-model-ans-container" class="h-18 w-56 bg-white rounded border border-slate-500 flex items-center justify-center overflow-hidden p-1 shadow-inner">
+          <span class="text-slate-400 text-xs">模範解答なし</span>
+        </div>
+      </div>
+      <div class="flex-1 flex flex-col h-full bg-slate-900/70 rounded-lg p-2 border border-slate-700/80 overflow-y-auto">
+        <div class="flex justify-between items-center mb-1">
+          <span class="text-[10px] font-bold text-slate-300 flex items-center">
+            <i class="fa-solid fa-clipboard-check text-sky-400 mr-1"></i>採点基準・ルーブリック
+          </span>
+          <span id="s2-model-point-badge" class="text-[10px] font-mono font-bold text-amber-300 bg-slate-800 px-2 py-0.5 rounded border border-slate-700">配点: - 点</span>
+        </div>
+        <p id="s2-model-rubric-text" class="text-xs text-slate-300 leading-snug whitespace-pre-wrap">Step 1 で模範解答を設定すると採点基準がここに表示されます。</p>
+      </div>
+
+      <!-- ★ キー操作ガイド ＆ クリックでキーカスタム ★ -->
+      <div class="flex flex-col h-full justify-between bg-slate-900/80 rounded-lg p-2 border border-slate-700 text-[11px] shrink-0 font-mono">
+        <div class="flex items-center space-x-2">
+          <!-- 正解キー（クリックで変更） -->
+          <button id="btn-custom-key-correct" class="px-2 py-0.5 bg-emerald-700/80 hover:bg-emerald-600 border border-emerald-500 rounded font-bold text-emerald-100 transition shadow" title="クリックして正解キーを変更">
+            <span id="key-label-correct">C</span>
+          </button>
+          <span class="text-slate-200">満点</span>
+          
+          <!-- 不正解キー（クリックで変更） -->
+          <button id="btn-custom-key-wrong" class="px-2 py-0.5 bg-rose-700/80 hover:bg-rose-600 border border-rose-500 rounded font-bold text-rose-100 transition shadow ml-2" title="クリックして不正解キーを変更">
+            <span id="key-label-wrong">X</span>
+          </button>
+          <span class="text-slate-200">0点</span>
+        </div>
+        <div class="flex items-center space-x-2 text-[10px] text-slate-400 mt-1">
+          <kbd class="px-1 py-0.5 bg-slate-700 border border-slate-600 rounded text-slate-200">0〜9</kbd>
+          <span>部分点</span>
+          <span class="text-indigo-300 ml-1">💡 キーを押して変更可</span>
+        </div>
+        <div class="flex justify-between items-center text-[10px] text-slate-400 pt-1 border-t border-slate-800">
+          <span><kbd class="px-1 bg-slate-800 rounded">矢印</kbd> 移動</span>
+          <span><kbd class="px-1 bg-slate-800 rounded">Space</kbd> 拡大</span>
+          <span class="ml-1"><kbd class="px-1 bg-slate-800 rounded">PgUp/Dn</kbd> 設問切替</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Step 2 サブバー -->
+    <div class="h-8 bg-slate-850 border-b border-slate-700 flex items-center justify-between px-4 text-xs shrink-0">
+      <div class="flex items-center space-x-3 text-[11px]">
+        <div><span class="text-slate-400">設問: </span><span id="s2-current-q-name" class="font-bold text-indigo-300 font-mono">-</span></div>
+        <span class="text-slate-600">|</span>
+        <div><span class="text-slate-400">採点系統: </span><span id="s2-current-stream-badge" class="font-bold text-indigo-400 font-mono">系統1 (A)</span></div>
+        <span class="text-slate-600">|</span>
+        <div id="s2-mismatch-counter-box" class="hidden flex items-center space-x-1 text-rose-400 font-bold bg-rose-950/40 px-2 py-0.5 rounded border border-rose-800/60">
+          <i class="fa-solid fa-triangle-exclamation text-xs"></i><span>系統不一致: <span id="s2-mismatch-count">0</span> 件</span>
+        </div>
+      </div>
+      <div class="flex items-center space-x-2 text-[11px]">
+        <span class="text-slate-400">表示絞り込み:</span>
+        <select id="s2-filter-status" class="bg-slate-900 border border-slate-600 rounded px-2 py-0.5 text-slate-200 outline-none">
+          <option value="all">全員分表示</option>
+          <option value="unmarked">現系統の未採点のみ</option>
+          <option value="marked">現系統の採点済みのみ</option>
+          <option value="mismatch">系統1・2 不一致のみ</option>
+        </select>
+      </div>
+    </div>
+
+    <!-- 採点タイルグリッド -->
+    <main id="s2-grid-container" class="flex-1 overflow-y-auto p-4 bg-slate-950">
+      <div id="s2-empty-workspace" class="h-full flex flex-col items-center justify-center text-center p-6">
+        <div class="max-w-md bg-slate-800/80 p-8 rounded-2xl border border-slate-700 shadow-2xl backdrop-blur">
+          <i class="fa-solid fa-graduation-cap text-5xl text-indigo-400 mb-4 block"></i>
+          <h2 class="text-lg font-bold text-white mb-2">生徒答案PDFを読み込んでください</h2>
+          <div class="text-left text-xs text-slate-300 space-y-2 mb-6 bg-slate-900/60 p-3.5 rounded-lg border border-slate-700 leading-relaxed">
+            <div><b>① 枠設定の確認:</b><br>Step 1 で模範解答用紙に枠を引き、配点を設定してください。</div>
+            <div><b>② 答案PDF読込:</b><br>右上のボタンから選択するか、<span class="text-indigo-300 font-bold">画面上に生徒答案PDFを直接ドロップ</span>してください。</div>
+          </div>
+          <button onclick="document.getElementById('s2-students-pdf-input').click()" class="w-full py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs rounded-lg transition shadow">
+            答案PDFファイルを選択する
+          </button>
+        </div>
+      </div>
+      <div id="s2-tiles-grid" class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-3 hidden"></div>
+    </main>
+  </div>
+
+  <!-- 出席番号確認モーダル -->
+  <div id="student-num-modal" class="fixed inset-0 bg-slate-950/85 backdrop-blur-sm z-50 flex flex-col items-center justify-center p-4 hidden">
+    <div class="bg-slate-900 border border-slate-700 rounded-2xl shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col overflow-hidden">
+      <div class="px-4 py-3 bg-slate-800 border-b border-slate-700 flex justify-between items-center shrink-0">
+        <div class="flex items-center space-x-2">
+          <i class="fa-solid fa-id-card-clip text-amber-400 text-base"></i>
+          <h3 class="font-bold text-sm text-white">出席番号・氏名 照合・修正</h3>
+          <span class="text-xs text-slate-400">（画像を見ながらテンキー入力 ➜ Enterで次へ）</span>
+        </div>
+        <button onclick="closeStudentNumModal()" class="text-slate-400 hover:text-white p-1 text-lg"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+      <div class="flex-1 overflow-y-auto p-4 space-y-2">
+        <div class="grid grid-cols-12 gap-2 text-xs font-bold text-slate-400 pb-1 border-b border-slate-700 px-2">
+          <span class="col-span-1">ページ</span>
+          <span class="col-span-4">出席番号画像</span>
+          <span class="col-span-4">氏名欄画像</span>
+          <span class="col-span-3">出席番号 入力</span>
+        </div>
+        <div id="student-num-list" class="space-y-1.5"></div>
+      </div>
+      <div class="p-3 bg-slate-800 border-t border-slate-700 flex justify-between items-center shrink-0 text-xs">
+        <span class="text-slate-400">番号を修正すると自動で番号順に並び替えられます。</span>
+        <button onclick="closeStudentNumModal()" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-lg transition">完了して採点へ戻る</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 拡大モーダル -->
+  <div id="zoom-modal" class="fixed inset-0 bg-slate-950/85 backdrop-blur-sm z-50 flex flex-col items-center justify-center p-6 hidden">
+    <div class="relative bg-slate-900 border border-slate-700 rounded-xl p-3 shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col items-center">
+      <div class="w-full flex justify-between items-center mb-2 px-2">
+        <span id="modal-title" class="font-bold text-sm text-indigo-300">出席番号 1番</span>
+        <div class="flex items-center space-x-3 text-xs text-slate-400">
+          <span>💡 マウスドラッグで用紙全体を自由に移動できます</span>
+          <button onclick="closeModal()" class="text-slate-400 hover:text-white p-1 text-lg"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+      </div>
+      <div id="modal-viewport" class="flex-1 w-full h-[70vh] overflow-hidden bg-slate-950 rounded border border-slate-700 relative peeking-window">
+        <div id="modal-canvas-wrapper" class="absolute origin-top-left" style="transform: matrix(1, 0, 0, 1, 0, 0);">
+          <img id="modal-full-img" class="max-w-none pointer-events-none" src="" alt="答案用紙全体">
+        </div>
+      </div>
+      <p class="text-xs text-slate-400 mt-2 font-mono">Space または Esc で閉じます</p>
+    </div>
+  </div>
+
+  <!-- スピナー -->
+  <div id="loading-overlay" class="fixed inset-0 bg-slate-950/90 z-50 flex flex-col items-center justify-center hidden">
+    <div class="w-14 h-14 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin mb-4"></div>
+    <h3 id="loading-title" class="font-bold text-white text-base mb-1">処理中...</h3>
+    <p id="loading-subtitle" class="text-xs text-slate-400 font-mono">しばらくお待ちください</p>
+  </div>
+
+  <!-- ================= JavaScript アプリケーションコア ================= -->
+  <script>
+    if (window.pdfjsLib) {
+      window.pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
+    }
+
+    function incrementQuestionName(name) {
+      const parenMatch = name.match(/^(.*[\(（])(\d+)([\)）].*)$/);
+      if (parenMatch) return `${parenMatch[1]}${parseInt(parenMatch[2], 10) + 1}${parenMatch[3]}`;
+      const sepMatch = name.match(/^(.*[-_.\s])(\d+)$/);
+      if (sepMatch) return `${sepMatch[1]}${parseInt(sepMatch[2], 10) + 1}`;
+      const letterMatch = name.match(/^(.*)([a-zA-Z])$/);
+      if (letterMatch && letterMatch[2] !== 'z' && letterMatch[2] !== 'Z') {
+        return `${letterMatch[1]}${String.fromCharCode(letterMatch[2].charCodeAt(0) + 1)}`;
+      }
+      const numMatch = name.match(/^(.*?)(\d+)$/);
+      if (numMatch) return `${numMatch[1]}${parseInt(numMatch[2], 10) + 1}`;
+      return `${name}_copy`;
+    }
+
+    // --- グローバル状態 ---
+    const appState = {
+      currentStep: 1,
+      // キーバインド設定（カスタマイズ可能）
+      customKeys: {
+        correct: localStorage.getItem('d_saiten_key_correct') || 'c',
+        wrong: localStorage.getItem('d_saiten_key_wrong') || 'x'
+      },
+      listeningKeyType: null, // 'correct' or 'wrong'
+      s1: {
+        imageLoaded: false,
+        imgWidth: 0,
+        imgHeight: 0,
+        scale: 1,
+        panX: 0,
+        panY: 0,
+        isPanning: false,
+        panStart: { x: 0, y: 0 },
+        mode: 'box',
+        currentCategory: 'question',
+        isSpaceDown: false,
+        enableAspect: true,
+        boxes: [],
+        selectedIds: [],
+        interactionMode: null,
+        dragStartPt: { x: 0, y: 0 },
+        boxOrigStates: new Map(),
+        tempBox: null
+      },
+      s2: {
+        questions: [],
+        metaBoxes: [],
+        currentQIndex: 0,
+        activeStudentIndex: 0,
+        isDoubleMode: false,
+        currentStream: 1,
+        students: [],
+        filter: 'all',
+        tileOffsets: {}
+      }
+    };
+
+    const viewStep1 = document.getElementById('view-step1');
+    const viewStep2 = document.getElementById('view-step2');
+    const tabStep1Btn = document.getElementById('tab-step1-btn');
+    const tabStep2Btn = document.getElementById('tab-step2-btn');
+
+    const s1Viewport = document.getElementById('viewport-container');
+    const s1Wrapper = document.getElementById('canvas-wrapper');
+    const s1Canvas = document.getElementById('paper-canvas');
+    const s1Ctx = s1Canvas.getContext('2d');
+    const s1SvgOverlay = document.getElementById('svg-overlay');
+    const s1ZoomText = document.getElementById('s1-zoom-text');
+    const s1EmptyState = document.getElementById('s1-empty-state');
+    const s1AspectSwitch = document.getElementById('s1-aspect-switch');
+    const s1AspectSummary = document.getElementById('s1-aspect-summary-container');
+    const s1SelectAllCheckbox = document.getElementById('s1-select-all-checkbox');
+
+    const s2QSelect = document.getElementById('s2-question-select');
+    const s2QMetaBadges = document.getElementById('s2-q-meta-badges');
+    const s2CurrentQName = document.getElementById('s2-current-q-name');
+    const s2CurrentStreamBadge = document.getElementById('s2-current-stream-badge');
+    const s2StreamLabelProgress = document.getElementById('s2-stream-label-progress');
+    const s2MismatchCounterBox = document.getElementById('s2-mismatch-counter-box');
+    const s2MismatchCountEl = document.getElementById('s2-mismatch-count');
+    const s2TilesGrid = document.getElementById('s2-tiles-grid');
+    const s2EmptyWorkspace = document.getElementById('s2-empty-workspace');
+    const s2ProgressBar = document.getElementById('s2-progress-bar');
+    const s2ProgressText = document.getElementById('s2-progress-text');
+    const s2ModelAnsContainer = document.getElementById('s2-model-ans-container');
+    const s2ModelPointBadge = document.getElementById('s2-model-point-badge');
+    const s2ModelRubricText = document.getElementById('s2-model-rubric-text');
+    const s2DoubleModeToggle = document.getElementById('s2-double-mode-toggle');
+    const s2BtnStream1 = document.getElementById('s2-btn-stream-1');
+    const s2BtnStream2 = document.getElementById('s2-btn-stream-2');
+
+    const btnCustomKeyCorrect = document.getElementById('btn-custom-key-correct');
+    const btnCustomKeyWrong = document.getElementById('btn-custom-key-wrong');
+    const keyLabelCorrect = document.getElementById('key-label-correct');
+    const keyLabelWrong = document.getElementById('key-label-wrong');
+    const autosaveIndicator = document.getElementById('autosave-indicator');
+
+    const zoomModal = document.getElementById('zoom-modal');
+    const modalTitle = document.getElementById('modal-title');
+    const modalViewport = document.getElementById('modal-viewport');
+    const modalCanvasWrapper = document.getElementById('modal-canvas-wrapper');
+    const modalFullImg = document.getElementById('modal-full-img');
+    const studentNumModal = document.getElementById('student-num-modal');
+    const studentNumList = document.getElementById('student-num-list');
+    const loadingOverlay = document.getElementById('loading-overlay');
+    const loadingTitle = document.getElementById('loading-title');
+    const loadingSubtitle = document.getElementById('loading-subtitle');
+
+    function showLoading(title, subtitle = 'しばらくお待ちください') {
+      loadingTitle.textContent = title;
+      loadingSubtitle.textContent = subtitle;
+      loadingOverlay.classList.remove('hidden');
+    }
+    function hideLoading() { loadingOverlay.classList.add('hidden'); }
+
+    // ================= キーバインド・カスタマイズ機能 =================
+    function updateKeyLabels() {
+      keyLabelCorrect.textContent = appState.customKeys.correct.toUpperCase();
+      keyLabelWrong.textContent = appState.customKeys.wrong.toUpperCase();
+    }
+    updateKeyLabels();
+
+    btnCustomKeyCorrect.addEventListener('click', (e) => {
+      e.stopPropagation();
+      appState.listeningKeyType = 'correct';
+      keyLabelCorrect.textContent = '入力待機...';
+      btnCustomKeyCorrect.classList.add('ring-2', 'ring-white', 'animate-pulse');
+    });
+
+    btnCustomKeyWrong.addEventListener('click', (e) => {
+      e.stopPropagation();
+      appState.listeningKeyType = 'wrong';
+      keyLabelWrong.textContent = '入力待機...';
+      btnCustomKeyWrong.classList.add('ring-2', 'ring-white', 'animate-pulse');
+    });
+
+    // キー割り当てイベントリスナー
+    window.addEventListener('keydown', (e) => {
+      if (appState.listeningKeyType) {
+        e.preventDefault();
+        e.stopPropagation();
+        const key = e.key.toLowerCase();
+        // 数字や制御キーの重複をガード
+        if (/^[0-9]$/.test(key) || key === 'tab' || key === 'enter') {
+          alert('数字やEnter/Tabキーは割り当てできません。英字キーを選択してください。');
+        } else {
+          if (appState.listeningKeyType === 'correct') {
+            appState.customKeys.correct = key;
+            localStorage.setItem('d_saiten_key_correct', key);
+          } else {
+            appState.customKeys.wrong = key;
+            localStorage.setItem('d_saiten_key_wrong', key);
+          }
+        }
+        btnCustomKeyCorrect.classList.remove('ring-2', 'ring-white', 'animate-pulse');
+        btnCustomKeyWrong.classList.remove('ring-2', 'ring-white', 'animate-pulse');
+        appState.listeningKeyType = null;
+        updateKeyLabels();
+      }
+    }, true);
+
+    // ================= IndexedDB 自動途中保存 ＆ 復元機能 =================
+    const DB_NAME = 'DejitaruSaitenDB';
+    const DB_VERSION = 1;
+    let dbInstance = null;
+
+    function openDatabase() {
+      return new Promise((resolve, reject) => {
+        const req = indexedDB.open(DB_NAME, DB_VERSION);
+        req.onupgradeneeded = (e) => {
+          const db = e.target.result;
+          if (!db.objectStoreNames.contains('autosave')) {
+            db.createObjectStore('autosave', { keyPath: 'key' });
+          }
+        };
+        req.onsuccess = (e) => {
+          dbInstance = e.target.result;
+          resolve(dbInstance);
+        };
+        req.onerror = () => reject(req.error);
+      });
+    }
+
+    // 自動保存（非同期バッファ）
+    let autoSaveTimeout = null;
+    function triggerAutoSave() {
+      if (autoSaveTimeout) clearTimeout(autoSaveTimeout);
+      autosaveIndicator.innerHTML = '<i class="fa-solid fa-spinner animate-spin"></i><span>保存中...</span>';
+      autosaveIndicator.className = 'text-[10px] text-amber-400 flex items-center space-x-1 ml-2';
+
+      autoSaveTimeout = setTimeout(async () => {
+        try {
+          if (!dbInstance) await openDatabase();
+          const tx = dbInstance.transaction('autosave', 'readwrite');
+          const store = tx.objectStore('autosave');
+
+          // 保存用オブジェクト構築
+          const saveData = {
+            key: 'current_session',
+            updatedAt: new Date().toISOString(),
+            s1: {
+              boxes: appState.s1.boxes,
+              enableAspect: appState.s1.enableAspect
+            },
+            s2: {
+              questions: appState.s2.questions,
+              metaBoxes: appState.s2.metaBoxes,
+              isDoubleMode: appState.s2.isDoubleMode,
+              // 生徒データ（採点状況・オフセット等）
+              studentsSummary: appState.s2.students.map(std => ({
+                pageIndex: std.pageIndex,
+                studentNum: std.studentNum,
+                name: std.name,
+                scores1: std.scores1,
+                scores2: std.scores2,
+                fullPageImage: std.fullPageImage,
+                metaImages: std.metaImages,
+                images: std.images
+              }))
+            }
+          };
+
+          store.put(saveData);
+          autosaveIndicator.innerHTML = '<i class="fa-solid fa-cloud-arrow-up"></i><span>自動保存済</span>';
+          autosaveIndicator.className = 'text-[10px] text-emerald-400 flex items-center space-x-1 ml-2';
+        } catch (err) {
+          console.error('自動保存エラー:', err);
+          autosaveIndicator.innerHTML = '<i class="fa-solid fa-triangle-exclamation"></i><span>保存失敗</span>';
+          autosaveIndicator.className = 'text-[10px] text-rose-400 flex items-center space-x-1 ml-2';
+        }
+      }, 600);
+    }
+
+    // 起動時の自動復元チェック
+    async function checkAndRestoreAutoSave() {
+      try {
+        await openDatabase();
+        const tx = dbInstance.transaction('autosave', 'readonly');
+        const store = tx.objectStore('autosave');
+        const req = store.get('current_session');
+        req.onsuccess = () => {
+          const data = req.result;
+          if (data && ((data.s1 && data.s1.boxes.length > 0) || (data.s2 && data.s2.studentsSummary.length > 0))) {
+            const count = data.s2.studentsSummary ? data.s2.studentsSummary.length : 0;
+            if (confirm(`【前回の作業再開】\n前回の途中保存データが見つかりました（枠: ${data.s1.boxes.length}件、答案: ${count}名分）。\n復元して続きから採点を再開しますか？`)) {
+              restoreSession(data);
+            }
+          }
+        };
+      } catch (err) {
+        console.error('復元確認エラー:', err);
+      }
+    }
+
+    // 復元処理
+    function restoreSession(data) {
+      if (data.s1) {
+        appState.s1.boxes = data.s1.boxes || [];
+        appState.s1.enableAspect = data.s1.enableAspect !== undefined ? data.s1.enableAspect : true;
+        s1RenderBoxes();
+        s1UpdateSidebar();
+      }
+      if (data.s2) {
+        appState.s2.questions = data.s2.questions || [];
+        appState.s2.metaBoxes = data.s2.metaBoxes || [];
+        appState.s2.isDoubleMode = !!data.s2.isDoubleMode;
+        s2DoubleModeToggle.checked = appState.s2.isDoubleMode;
+
+        if (data.s2.studentsSummary && data.s2.studentsSummary.length > 0) {
+          appState.s2.students = data.s2.studentsSummary.map(std => {
+            const imgEl = new Image();
+            if (std.fullPageImage) imgEl.src = std.fullPageImage;
+            return {
+              ...std,
+              fullPageImgElement: imgEl
+            };
+          });
+          initS2QuestionSelect();
+          switchTab(2);
+          renderS2Tiles();
+          updateS2Progress();
+        }
+      }
+    }
+
+    // キャッシュ初期化ボタン
+    document.getElementById('clear-cache-btn').addEventListener('click', async () => {
+      if (confirm('ブラウザ内に保存されている枠設定や採点途中データをすべて消去して初期状態に戻しますか？')) {
+        if (!dbInstance) await openDatabase();
+        const tx = dbInstance.transaction('autosave', 'readwrite');
+        tx.objectStore('autosave').clear();
+        alert('データを消去しました。ページを再読み込みします。');
+        location.reload();
+      }
+    });
+
+    // ================= タブ切り替え制御 =================
+    function switchTab(step) {
+      appState.currentStep = step;
+      if (step === 1) {
+        viewStep1.classList.remove('hidden');
+        viewStep2.classList.add('hidden');
+        tabStep1Btn.className = 'px-4 py-1 rounded-lg text-xs font-bold transition flex items-center space-x-2 bg-indigo-600 text-white shadow';
+        tabStep2Btn.className = 'px-4 py-1 rounded-lg text-xs font-bold transition flex items-center space-x-2 text-slate-400 hover:text-slate-200';
+      } else {
+        syncStep1ToStep2();
+        viewStep1.classList.add('hidden');
+        viewStep2.classList.remove('hidden');
+        tabStep2Btn.className = 'px-4 py-1 rounded-lg text-xs font-bold transition flex items-center space-x-2 bg-indigo-600 text-white shadow';
+        tabStep1Btn.className = 'px-4 py-1 rounded-lg text-xs font-bold transition flex items-center space-x-2 text-slate-400 hover:text-slate-200';
+      }
+    }
+
+    tabStep1Btn.addEventListener('click', () => switchTab(1));
+    tabStep2Btn.addEventListener('click', () => switchTab(2));
+    document.getElementById('back-to-step1-btn').addEventListener('click', () => switchTab(1));
+    document.getElementById('proceed-to-step2-btn').addEventListener('click', () => {
+      const qBoxes = appState.s1.boxes.filter(b => b.category === 'question');
+      if (qBoxes.length === 0) {
+        alert('採点対象の設問枠がまだ作成されていません。用紙を読み込んで枠を作成してください。');
+        return;
+      }
+      switchTab(2);
+    });
+
+    function syncStep1ToStep2() {
+      const cropCanvas = document.createElement('canvas');
+      const cropCtx = cropCanvas.getContext('2d');
+
+      const items = appState.s1.boxes.map(box => {
+        let modelImg = null;
+        if (appState.s1.imageLoaded && box.w > 0 && box.h > 0) {
+          cropCanvas.width = box.w;
+          cropCanvas.height = box.h;
+          cropCtx.clearRect(0, 0, box.w, box.h);
+          cropCtx.drawImage(s1Canvas, box.x, box.y, box.w, box.h, 0, 0, box.w, box.h);
+          modelImg = cropCanvas.toDataURL('image/jpeg', 0.88);
+        }
+        return {
+          id: box.id,
+          name: box.name,
+          category: box.category,
+          points: box.category === 'question' ? Number(box.points) : 0,
+          rubric: box.rubric || '',
+          aspect: box.aspect || 'knowledge',
+          modelAnswerImage: modelImg,
+          normalized: {
+            x: +(box.x / appState.s1.imgWidth).toFixed(4),
+            y: +(box.y / appState.s1.imgHeight).toFixed(4),
+            w: +(box.w / appState.s1.imgWidth).toFixed(4),
+            h: +(box.h / appState.s1.imgHeight).toFixed(4)
+          }
+        };
+      });
+
+      appState.s2.questions = items.filter(b => b.category === 'question');
+      appState.s2.metaBoxes = items.filter(b => b.category !== 'question');
+
+      if (appState.s2.questions.length > 0) {
+        initS2QuestionSelect();
+      }
+      triggerAutoSave();
+    }
+
+    // ================= ドラッグ＆ドロップ =================
+    viewStep1.addEventListener('dragover', (e) => { e.preventDefault(); viewStep1.classList.add('drag-over-overlay'); });
+    viewStep1.addEventListener('dragleave', (e) => {
+      if (e.relatedTarget === null || !viewStep1.contains(e.relatedTarget)) viewStep1.classList.remove('drag-over-overlay');
+    });
+    viewStep1.addEventListener('drop', async (e) => {
+      e.preventDefault();
+      viewStep1.classList.remove('drag-over-overlay');
+      const files = e.dataTransfer.files;
+      if (files && files.length > 0) {
+        const file = files[0];
+        showLoading('模範解答用紙を展開中...');
+        try {
+          if (file.type === 'application/pdf') await s1LoadPDF(file);
+          else if (file.type.startsWith('image/')) await s1LoadImageFile(file);
+          else alert('対応フォーマットはPDFまたは画像（PNG/JPEG）です。');
+        } catch (err) {
+          alert('読み込みエラー: ' + err.message);
+        } finally {
+          hideLoading();
+        }
+      }
+    });
+
+    viewStep2.addEventListener('dragover', (e) => { e.preventDefault(); viewStep2.classList.add('drag-over-overlay'); });
+    viewStep2.addEventListener('dragleave', (e) => {
+      if (e.relatedTarget === null || !viewStep2.contains(e.relatedTarget)) viewStep2.classList.remove('drag-over-overlay');
+    });
+    viewStep2.addEventListener('drop', async (e) => {
+      e.preventDefault();
+      viewStep2.classList.remove('drag-over-overlay');
+      const files = e.dataTransfer.files;
+      if (files && files.length > 0) {
+        const file = files[0];
+        if (file.type !== 'application/pdf') {
+          alert('生徒答案はPDFファイルをドロップしてください。');
+          return;
+        }
+        await processStudentsPdf(file);
+      }
+    });
+
+    // ================= STEP 1: 枠設定エディタ ロジック =================
+    function s1ApplyTransform() {
+      s1Wrapper.style.transform = `matrix(${appState.s1.scale}, 0, 0, ${appState.s1.scale}, ${appState.s1.panX}, ${appState.s1.panY})`;
+      s1ZoomText.textContent = `${Math.round(appState.s1.scale * 100)}%`;
+    }
+
+    function s1FitView() {
+      if (!appState.s1.imageLoaded) return;
+      const vw = s1Viewport.clientWidth;
+      const vh = s1Viewport.clientHeight;
+      const padding = 32;
+      const scaleX = (vw - padding * 2) / appState.s1.imgWidth;
+      const scaleY = (vh - padding * 2) / appState.s1.imgHeight;
+      appState.s1.scale = Math.min(scaleX, scaleY, 1.2);
+      appState.s1.panX = Math.round((vw - appState.s1.imgWidth * appState.s1.scale) / 2);
+      appState.s1.panY = Math.round((vh - appState.s1.imgHeight * appState.s1.scale) / 2);
+      s1ApplyTransform();
+    }
+
+    function s1ScreenToImageCoords(screenX, screenY) {
+      const rect = s1Viewport.getBoundingClientRect();
+      const x = (screenX - rect.left - appState.s1.panX) / appState.s1.scale;
+      const y = (screenY - rect.top - appState.s1.panY) / appState.s1.scale;
+      return {
+        x: Math.max(0, Math.min(appState.s1.imgWidth, x)),
+        y: Math.max(0, Math.min(appState.s1.imgHeight, y))
+      };
+    }
+
+    document.getElementById('s1-file-input').addEventListener('change', async (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+      showLoading('模範解答用紙を展開中...');
+      try {
+        if (file.type === 'application/pdf') await s1LoadPDF(file);
+        else if (file.type.startsWith('image/')) await s1LoadImageFile(file);
+      } catch (err) {
+        alert('読み込みエラー: ' + err.message);
+      } finally {
+        hideLoading();
+        e.target.value = '';
+      }
+    });
+
+    function s1LoadImageFile(file) {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = (ev) => {
+          const img = new Image();
+          img.onload = () => { s1InitCanvasWithImage(img); resolve(); };
+          img.onerror = () => reject(new Error('画像を展開できませんでした。'));
+          img.src = ev.target.result;
+        };
+        reader.readAsDataURL(file);
+      });
+    }
+
+    async function s1LoadPDF(file) {
+      const arrayBuffer = await file.arrayBuffer();
+      const loadingTask = pdfjsLib.getDocument({
+        data: arrayBuffer,
+        cMapUrl: 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/cmaps/',
+        cMapPacked: true
+      });
+      const pdf = await loadingTask.promise;
+      const page = await pdf.getPage(1);
+      const baseViewport = page.getViewport({ scale: 1.0 });
+      const targetScale = Math.min(2000 / baseViewport.width, 2.5);
+      const pageViewport = page.getViewport({ scale: targetScale });
+
+      s1Canvas.width = Math.round(pageViewport.width);
+      s1Canvas.height = Math.round(pageViewport.height);
+      s1SvgOverlay.setAttribute('viewBox', `0 0 ${s1Canvas.width} ${s1Canvas.height}`);
+      s1SvgOverlay.setAttribute('width', s1Canvas.width);
+      s1SvgOverlay.setAttribute('height', s1Canvas.height);
+
+      appState.s1.imgWidth = s1Canvas.width;
+      appState.s1.imgHeight = s1Canvas.height;
+
+      await page.render({ canvasContext: s1Ctx, viewport: pageViewport }).promise;
+      s1OnPaperReady();
+    }
+
+    function s1InitCanvasWithImage(img) {
+      s1Canvas.width = img.width;
+      s1Canvas.height = img.height;
+      s1SvgOverlay.setAttribute('viewBox', `0 0 ${img.width} ${img.height}`);
+      s1SvgOverlay.setAttribute('width', img.width);
+      s1SvgOverlay.setAttribute('height', img.height);
+      appState.s1.imgWidth = img.width;
+      appState.s1.imgHeight = img.height;
+      s1Ctx.clearRect(0, 0, s1Canvas.width, s1Canvas.height);
+      s1Ctx.drawImage(img, 0, 0);
+      s1OnPaperReady();
+    }
+
+    function s1OnPaperReady() {
+      appState.s1.imageLoaded = true;
+      appState.s1.boxes = [];
+      appState.s1.selectedIds = [];
+      s1EmptyState.classList.add('hidden');
+      s1FitView();
+      s1RenderBoxes();
+      s1UpdateSidebar();
+      triggerAutoSave();
+    }
+
+    s1AspectSwitch.addEventListener('change', (e) => {
+      appState.s1.enableAspect = e.target.checked;
+      if (appState.s1.enableAspect) s1AspectSummary.classList.remove('hidden');
+      else s1AspectSummary.classList.add('hidden');
+      s1RenderBoxes();
+      s1UpdateSidebar();
+      triggerAutoSave();
+    });
+
+    function getCategoryMeta(category) {
+      switch (category) {
+        case 'student_num': return { color: '#f59e0b', label: '出席番号', short: '番号' };
+        case 'student_name': return { color: '#14b8a6', label: '氏名欄', short: '氏名' };
+        case 'total_score': return { color: '#f43f5e', label: '合計点枠', short: '合計' };
+        case 'aspect_k_score': return { color: '#38bdf8', label: '知識集計枠', short: '知計' };
+        case 'aspect_t_score': return { color: '#c084fc', label: '思考集計枠', short: '思計' };
+        case 'other': return { color: '#94a3b8', label: 'その他枠', short: '他' };
+        case 'question':
+        default: return { color: '#3b82f6', label: '設問', short: '問' };
+      }
+    }
+
+    document.querySelectorAll('.draw-cat-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        appState.s1.mode = 'box';
+        appState.s1.currentCategory = btn.dataset.cat;
+        document.querySelectorAll('.draw-cat-btn').forEach(b => {
+          b.className = 'draw-cat-btn px-2 py-0.5 rounded hover:bg-slate-700 font-bold flex items-center space-x-1 transition shrink-0 ' +
+            (b.dataset.cat === 'question' ? 'text-indigo-300' :
+             b.dataset.cat === 'student_num' ? 'text-amber-400' :
+             b.dataset.cat === 'student_name' ? 'text-teal-400' :
+             b.dataset.cat === 'total_score' ? 'text-rose-400' :
+             b.dataset.cat === 'aspect_k_score' ? 'text-sky-400' :
+             b.dataset.cat === 'aspect_t_score' ? 'text-purple-400' : 'text-slate-400');
+        });
+        btn.className = 'draw-cat-btn px-2 py-0.5 rounded font-bold flex items-center space-x-1 transition shrink-0 bg-indigo-600 text-white shadow';
+        document.getElementById('s1-tool-pan-btn').className = 'px-2 py-0.5 rounded hover:bg-slate-700 text-slate-300 font-medium flex items-center space-x-1 transition shrink-0';
+        s1Viewport.classList.remove('panning');
+      });
+    });
+
+    document.getElementById('s1-tool-pan-btn').addEventListener('click', () => {
+      appState.s1.mode = 'pan';
+      document.querySelectorAll('.draw-cat-btn').forEach(b => {
+        b.className = 'draw-cat-btn px-2 py-0.5 rounded hover:bg-slate-700 font-bold flex items-center space-x-1 transition shrink-0 text-slate-400';
+      });
+      document.getElementById('s1-tool-pan-btn').className = 'px-2 py-0.5 rounded font-bold flex items-center space-x-1 transition shrink-0 bg-indigo-600 text-white shadow';
+      s1Viewport.classList.add('panning');
+    });
+
+    s1Viewport.addEventListener('mousedown', (e) => {
+      if (!appState.s1.imageLoaded) return;
+      if (e.button === 1 || appState.s1.isSpaceDown || appState.s1.mode === 'pan') {
+        appState.s1.isPanning = true;
+        appState.s1.panStart = { x: e.clientX - appState.s1.panX, y: e.clientY - appState.s1.panY };
+        s1Viewport.classList.add('is-panning');
+        e.preventDefault();
+        return;
+      }
+      if (e.button !== 0) return;
+
+      const pt = s1ScreenToImageCoords(e.clientX, e.clientY);
+      const isMultiKey = e.shiftKey || e.ctrlKey || e.metaKey;
+
+      if (appState.s1.selectedIds.length === 1) {
+        const selBox = appState.s1.boxes.find(b => b.id === appState.s1.selectedIds[0]);
+        if (selBox) {
+          const handleX = selBox.x + selBox.w;
+          const handleY = selBox.y + selBox.h;
+          if (Math.hypot(pt.x - handleX, pt.y - handleY) <= 25 / appState.s1.scale) {
+            appState.s1.interactionMode = 'resizing';
+            appState.s1.dragStartPt = pt;
+            appState.s1.boxOrigStates.clear();
+            appState.s1.boxOrigStates.set(selBox.id, { ...selBox });
+            e.stopPropagation();
+            return;
+          }
+        }
+      }
+
+      let clickedBox = null;
+      for (let i = appState.s1.boxes.length - 1; i >= 0; i--) {
+        const b = appState.s1.boxes[i];
+        if (pt.x >= b.x && pt.x <= b.x + b.w && pt.y >= b.y && pt.y <= b.y + b.h) {
+          clickedBox = b;
+          break;
+        }
+      }
+
+      if (clickedBox) {
+        if (isMultiKey) {
+          if (appState.s1.selectedIds.includes(clickedBox.id)) {
+            appState.s1.selectedIds = appState.s1.selectedIds.filter(id => id !== clickedBox.id);
+          } else {
+            appState.s1.selectedIds.push(clickedBox.id);
+          }
+        } else {
+          if (!appState.s1.selectedIds.includes(clickedBox.id)) {
+            appState.s1.selectedIds = [clickedBox.id];
+          }
+        }
+        appState.s1.interactionMode = 'moving';
+        appState.s1.dragStartPt = pt;
+        appState.s1.boxOrigStates.clear();
+        appState.s1.selectedIds.forEach(id => {
+          const b = appState.s1.boxes.find(item => item.id === id);
+          if (b) appState.s1.boxOrigStates.set(id, { ...b });
+        });
+        s1RenderBoxes();
+        s1UpdateSidebar();
+        e.stopPropagation();
+        return;
+      }
+
+      if (!isMultiKey) appState.s1.selectedIds = [];
+      appState.s1.interactionMode = 'drawing';
+      appState.s1.dragStartPt = pt;
+      appState.s1.tempBox = { x: pt.x, y: pt.y, w: 0, h: 0 };
+      s1RenderBoxes();
+      s1UpdateSidebar();
+    });
+
+    window.addEventListener('mousemove', (e) => {
+      if (appState.currentStep !== 1) return;
+      if (appState.s1.isPanning) {
+        appState.s1.panX = e.clientX - appState.s1.panStart.x;
+        appState.s1.panY = e.clientY - appState.s1.panStart.y;
+        s1ApplyTransform();
+        return;
+      }
+      if (!appState.s1.interactionMode) return;
+
+      const pt = s1ScreenToImageCoords(e.clientX, e.clientY);
+      const dx = pt.x - appState.s1.dragStartPt.x;
+      const dy = pt.y - appState.s1.dragStartPt.y;
+
+      if (appState.s1.interactionMode === 'moving') {
+        appState.s1.selectedIds.forEach(id => {
+          const sel = appState.s1.boxes.find(b => b.id === id);
+          const orig = appState.s1.boxOrigStates.get(id);
+          if (sel && orig) {
+            sel.x = Math.max(0, Math.min(appState.s1.imgWidth - sel.w, Math.round(orig.x + dx)));
+            sel.y = Math.max(0, Math.min(appState.s1.imgHeight - sel.h, Math.round(orig.y + dy)));
+          }
+        });
+        s1RenderBoxes();
+      } else if (appState.s1.interactionMode === 'resizing') {
+        const id = appState.s1.selectedIds[0];
+        const sel = appState.s1.boxes.find(b => b.id === id);
+        const orig = appState.s1.boxOrigStates.get(id);
+        if (sel && orig) {
+          sel.w = Math.min(appState.s1.imgWidth - sel.x, Math.round(Math.max(20, orig.w + dx)));
+          sel.h = Math.min(appState.s1.imgHeight - sel.y, Math.round(Math.max(20, orig.h + dy)));
+          s1RenderBoxes();
+        }
+      } else if (appState.s1.interactionMode === 'drawing') {
+        appState.s1.tempBox = {
+          x: Math.min(appState.s1.dragStartPt.x, pt.x),
+          y: Math.min(appState.s1.dragStartPt.y, pt.y),
+          w: Math.abs(pt.x - appState.s1.dragStartPt.x),
+          h: Math.abs(pt.y - appState.s1.dragStartPt.y)
+        };
+        s1RenderBoxes();
+      }
+    });
+
+    window.addEventListener('mouseup', () => {
+      if (appState.currentStep !== 1) return;
+      if (appState.s1.isPanning) {
+        appState.s1.isPanning = false;
+        s1Viewport.classList.remove('is-panning');
+      }
+      if (appState.s1.interactionMode === 'drawing') {
+        if (appState.s1.tempBox && appState.s1.tempBox.w > 15 && appState.s1.tempBox.h > 15) {
+          const cat = appState.s1.currentCategory || 'question';
+          let defaultName = '';
+          if (cat === 'question') {
+            const lastQ = [...appState.s1.boxes].reverse().find(b => b.category === 'question');
+            defaultName = lastQ ? incrementQuestionName(lastQ.name) : '1(1)';
+          } else {
+            defaultName = getCategoryMeta(cat).label;
+          }
+
+          const newBox = {
+            id: 'box_' + Date.now(),
+            name: defaultName,
+            category: cat,
+            x: Math.round(appState.s1.tempBox.x),
+            y: Math.round(appState.s1.tempBox.y),
+            w: Math.round(appState.s1.tempBox.w),
+            h: Math.round(appState.s1.tempBox.h),
+            points: cat === 'question' ? 2 : 0,
+            rubric: '',
+            aspect: 'knowledge'
+          };
+          appState.s1.boxes.push(newBox);
+          appState.s1.selectedIds = [newBox.id];
+          triggerAutoSave();
+        }
+        appState.s1.tempBox = null;
+      }
+      appState.s1.interactionMode = null;
+      appState.s1.boxOrigStates.clear();
+      s1RenderBoxes();
+      s1UpdateSidebar();
+    });
+
+    window.addEventListener('keydown', (e) => {
+      if (appState.currentStep !== 1) return;
+      if (e.code === 'Space' && !appState.s1.isSpaceDown && document.activeElement.tagName !== 'INPUT' && document.activeElement.tagName !== 'TEXTAREA') {
+        appState.s1.isSpaceDown = true;
+        s1Viewport.classList.add('panning');
+      }
+      if (appState.s1.selectedIds.length > 0 && document.activeElement.tagName !== 'INPUT' && document.activeElement.tagName !== 'TEXTAREA') {
+        const step = e.shiftKey ? 10 : 1;
+        let moved = false;
+        appState.s1.selectedIds.forEach(id => {
+          const sel = appState.s1.boxes.find(b => b.id === id);
+          if (sel) {
+            if (e.key === 'ArrowLeft')  { sel.x = Math.max(0, sel.x - step); moved = true; }
+            if (e.key === 'ArrowRight') { sel.x = Math.min(appState.s1.imgWidth - sel.w, sel.x + step); moved = true; }
+            if (e.key === 'ArrowUp')    { sel.y = Math.max(0, sel.y - step); moved = true; }
+            if (e.key === 'ArrowDown')  { sel.y = Math.min(appState.s1.imgHeight - sel.h, sel.y + step); moved = true; }
+          }
+        });
+        if (moved) { e.preventDefault(); s1RenderBoxes(); triggerAutoSave(); return; }
+        if (e.key === 'Delete' || e.key === 'Backspace') s1DeleteSelectedBoxes();
+      }
+      if ((e.ctrlKey || e.metaKey) && e.key === 'd') {
+        e.preventDefault();
+        s1CloneSelectedBoxesDown();
+      }
+    });
+
+    window.addEventListener('keyup', (e) => {
+      if (appState.currentStep !== 1) return;
+      if (e.code === 'Space') {
+        appState.s1.isSpaceDown = false;
+        s1Viewport.classList.remove('panning');
+      }
+    });
+
+    s1Viewport.addEventListener('wheel', (e) => {
+      if (!appState.s1.imageLoaded) return;
+      e.preventDefault();
+      const zoomFactor = e.deltaY < 0 ? 1.15 : 0.87;
+      const rect = s1Viewport.getBoundingClientRect();
+      const mouseX = e.clientX - rect.left;
+      const mouseY = e.clientY - rect.top;
+      const newScale = Math.max(0.1, Math.min(6.0, appState.s1.scale * zoomFactor));
+      appState.s1.panX = mouseX - (mouseX - appState.s1.panX) * (newScale / appState.s1.scale);
+      appState.s1.panY = mouseY - (mouseY - appState.s1.panY) * (newScale / appState.s1.scale);
+      appState.s1.scale = newScale;
+      s1ApplyTransform();
+    }, { passive: false });
+
+    function s1RenderBoxes() {
+      s1SvgOverlay.innerHTML = '';
+      appState.s1.boxes.forEach(box => {
+        const isSelected = appState.s1.selectedIds.includes(box.id);
+        const meta = getCategoryMeta(box.category);
+        const color = meta.color;
+
+        const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+        g.setAttribute('class', isSelected ? 'cursor-move' : 'cursor-pointer');
+
+        const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+        rect.setAttribute('x', box.x);
+        rect.setAttribute('y', box.y);
+        rect.setAttribute('width', box.w);
+        rect.setAttribute('height', box.h);
+        rect.setAttribute('fill', isSelected ? `${color}45` : `${color}18`);
+        rect.setAttribute('stroke', color);
+        rect.setAttribute('stroke-width', isSelected ? '3.5' : '2');
+        rect.setAttribute('stroke-dasharray', isSelected ? '6,3' : 'none');
+        rect.setAttribute('rx', '4');
+        g.appendChild(rect);
+
+        let labelText = box.name;
+        if (box.category === 'question') {
+          const aspectTag = appState.s1.enableAspect ? (box.aspect === 'thinking' ? '[思]' : '[知]') : '';
+          labelText = `${box.name} ${aspectTag} (${box.points}点)`;
+        } else {
+          labelText = `[${meta.short}] ${box.name}`;
+        }
+
+        const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+        text.setAttribute('x', box.x + 6);
+        text.setAttribute('y', box.y - 6 > 15 ? box.y - 6 : box.y + 18);
+        text.setAttribute('fill', color);
+        text.setAttribute('font-size', '14');
+        text.setAttribute('font-weight', 'bold');
+        text.setAttribute('font-family', 'sans-serif');
+        text.setAttribute('pointer-events', 'none');
+        text.textContent = labelText;
+        g.appendChild(text);
+
+        if (isSelected && appState.s1.selectedIds.length === 1) {
+          const handle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+          handle.setAttribute('cx', box.x + box.w);
+          handle.setAttribute('cy', box.y + box.h);
+          handle.setAttribute('r', '7');
+          handle.setAttribute('fill', '#ffffff');
+          handle.setAttribute('stroke', color);
+          handle.setAttribute('stroke-width', '3');
+          handle.setAttribute('class', 'cursor-se-resize');
+          g.appendChild(handle);
+        }
+        s1SvgOverlay.appendChild(g);
+      });
+
+      if (appState.s1.tempBox) {
+        const meta = getCategoryMeta(appState.s1.currentCategory || 'question');
+        const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+        rect.setAttribute('x', appState.s1.tempBox.x);
+        rect.setAttribute('y', appState.s1.tempBox.y);
+        rect.setAttribute('width', appState.s1.tempBox.w);
+        rect.setAttribute('height', appState.s1.tempBox.h);
+        rect.setAttribute('fill', `${meta.color}33`);
+        rect.setAttribute('stroke', meta.color);
+        rect.setAttribute('stroke-width', '2');
+        rect.setAttribute('stroke-dasharray', '4,4');
+        s1SvgOverlay.appendChild(rect);
+      }
+    }
+
+    function s1UpdateSidebar() {
+      const listEl = document.getElementById('s1-boxes-list');
+      const boxCount = document.getElementById('s1-box-count');
+      const totalPoints = document.getElementById('s1-total-points');
+      const knowledgePoints = document.getElementById('s1-knowledge-points');
+      const thinkingPoints = document.getElementById('s1-thinking-points');
+      const selPanel = document.getElementById('s1-selection-panel');
+      const selectedSummaryText = document.getElementById('s1-selected-summary-text');
+
+      boxCount.textContent = appState.s1.boxes.length;
+      selectedSummaryText.textContent = `${appState.s1.selectedIds.length}枠 選択`;
+
+      let total = 0, kTotal = 0, tTotal = 0;
+      appState.s1.boxes.forEach(b => {
+        if (b.category === 'question') {
+          const p = Number(b.points) || 0;
+          total += p;
+          if (b.aspect === 'thinking') tTotal += p;
+          else kTotal += p;
+        }
+      });
+      totalPoints.textContent = total;
+      knowledgePoints.textContent = kTotal;
+      thinkingPoints.textContent = tTotal;
+
+      if (appState.s1.selectedIds.length > 0) {
+        selPanel.classList.remove('hidden');
+        const activeId = appState.s1.selectedIds[appState.s1.selectedIds.length - 1];
+        const sel = appState.s1.boxes.find(b => b.id === activeId);
+
+        if (sel) {
+          const countInfo = appState.s1.selectedIds.length > 1 ? ` (他 ${appState.s1.selectedIds.length - 1}件)` : '';
+          document.getElementById('s1-sel-title').textContent = `${sel.name} 編集${countInfo}`;
+          document.getElementById('s1-prop-id').value = sel.name;
+          document.getElementById('s1-prop-points').value = sel.points;
+          document.getElementById('s1-prop-rubric').value = sel.rubric || '';
+
+          document.querySelectorAll('#s1-change-cat-group button').forEach(b => {
+            const isMatch = b.dataset.cat === sel.category;
+            b.style.opacity = isMatch ? '1.0' : '0.5';
+            b.style.borderWidth = isMatch ? '2px' : '1px';
+          });
+
+          const isQuestion = sel.category === 'question';
+          document.getElementById('s1-points-container').style.display = isQuestion ? 'block' : 'none';
+          document.getElementById('s1-rubric-container').style.display = isQuestion ? 'block' : 'none';
+          document.getElementById('s1-aspect-field-container').style.display = (isQuestion && appState.s1.enableAspect) ? 'block' : 'none';
+
+          if (isQuestion) {
+            const btnK = document.getElementById('s1-btn-aspect-knowledge');
+            const btnT = document.getElementById('s1-btn-aspect-thinking');
+            if (sel.aspect === 'thinking') {
+              btnT.className = 'py-1 px-2 rounded border border-purple-500 bg-purple-600/30 text-purple-200 font-semibold text-center transition';
+              btnK.className = 'py-1 px-2 rounded border border-slate-600 hover:border-slate-500 text-slate-300 text-center transition';
+            } else {
+              btnK.className = 'py-1 px-2 rounded border border-sky-500 bg-sky-600/30 text-sky-200 font-semibold text-center transition';
+              btnT.className = 'py-1 px-2 rounded border border-slate-600 hover:border-slate-500 text-slate-300 text-center transition';
+            }
+          }
+        }
+      } else {
+        selPanel.classList.add('hidden');
+      }
+
+      listEl.innerHTML = '';
+      if (appState.s1.boxes.length === 0) {
+        listEl.innerHTML = '<p class="text-slate-500 text-center mt-6">枠を作成するとここに一覧表示されます</p>';
+        s1SelectAllCheckbox.checked = false;
+        return;
+      }
+
+      s1SelectAllCheckbox.checked = appState.s1.selectedIds.length === appState.s1.boxes.length;
+
+      appState.s1.boxes.forEach(box => {
+        const item = document.createElement('div');
+        const isSel = appState.s1.selectedIds.includes(box.id);
+        const meta = getCategoryMeta(box.category);
+
+        item.className = `p-2 rounded border flex items-center justify-between cursor-pointer transition ${
+          isSel ? 'bg-indigo-900/40 border-indigo-500' : 'bg-slate-700/50 border-slate-600 hover:bg-slate-700'
+        }`;
+
+        item.onclick = (e) => {
+          if (e.target.tagName === 'INPUT') return;
+          if (e.shiftKey || e.ctrlKey || e.metaKey) {
+            if (appState.s1.selectedIds.includes(box.id)) appState.s1.selectedIds = appState.s1.selectedIds.filter(id => id !== box.id);
+            else appState.s1.selectedIds.push(box.id);
+          } else {
+            appState.s1.selectedIds = [box.id];
+          }
+          s1RenderBoxes();
+          s1UpdateSidebar();
+        };
+
+        let badgeHtml = '';
+        if (box.category === 'question') {
+          badgeHtml = appState.s1.enableAspect 
+            ? (box.aspect === 'thinking' ? '<span class="text-[9px] bg-purple-900/60 text-purple-300 px-1.5 py-0.5 rounded font-mono">思考</span>'
+                                         : '<span class="text-[9px] bg-sky-900/60 text-sky-300 px-1.5 py-0.5 rounded font-mono">知識</span>')
+            : '';
+        } else {
+          badgeHtml = `<span class="text-[9px] px-1.5 py-0.5 rounded font-bold" style="background-color: ${meta.color}25; color: ${meta.color}">${meta.short}</span>`;
+        }
+
+        const pointDisplay = box.category === 'question' 
+          ? `<span class="font-mono text-slate-300 font-semibold">${box.points}点</span>`
+          : '<span class="text-slate-400 text-[10px]">特別枠</span>';
+
+        item.innerHTML = `
+          <div class="flex items-center space-x-2">
+            <input type="checkbox" ${isSel ? 'checked' : ''} class="rounded bg-slate-800 border-slate-600 pointer-events-none">
+            <span class="font-bold text-white">${box.name}</span>
+            <div class="flex space-x-1">${badgeHtml}</div>
+          </div>
+          ${pointDisplay}
+        `;
+        listEl.appendChild(item);
+      });
+    }
+
+    s1SelectAllCheckbox.addEventListener('change', (e) => {
+      appState.s1.selectedIds = e.target.checked ? appState.s1.boxes.map(b => b.id) : [];
+      s1RenderBoxes();
+      s1UpdateSidebar();
+    });
+
+    function s1DeleteSelectedBoxes() {
+      if (appState.s1.selectedIds.length === 0) return;
+      appState.s1.boxes = appState.s1.boxes.filter(b => !appState.s1.selectedIds.includes(b.id));
+      appState.s1.selectedIds = [];
+      s1RenderBoxes();
+      s1UpdateSidebar();
+      triggerAutoSave();
+    }
+
+    function s1CloneSelectedBoxesDown() {
+      if (appState.s1.selectedIds.length === 0) return;
+      const targets = appState.s1.boxes.filter(b => appState.s1.selectedIds.includes(b.id));
+      if (targets.length === 0) return;
+
+      const minY = Math.min(...targets.map(b => b.y));
+      const maxY = Math.max(...targets.map(b => b.y + b.h));
+      const offset = (maxY - minY) + 15;
+
+      const newIds = [];
+      targets.forEach(b => {
+        const newBox = {
+          id: 'box_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5),
+          name: b.category === 'question' ? incrementQuestionName(b.name) : b.name,
+          category: b.category,
+          x: b.x,
+          y: Math.min(appState.s1.imgHeight - b.h, b.y + offset),
+          w: b.w,
+          h: b.h,
+          points: b.points,
+          rubric: b.rubric || '',
+          aspect: b.aspect || 'knowledge'
+        };
+        appState.s1.boxes.push(newBox);
+        newIds.push(newBox.id);
+      });
+      appState.s1.selectedIds = newIds;
+      s1RenderBoxes();
+      s1UpdateSidebar();
+      triggerAutoSave();
+    }
+
+    function s1CloneSelectedBoxesRight() {
+      if (appState.s1.selectedIds.length === 0) return;
+      const targets = appState.s1.boxes.filter(b => appState.s1.selectedIds.includes(b.id));
+      if (targets.length === 0) return;
+
+      const minX = Math.min(...targets.map(b => b.x));
+      const maxX = Math.max(...targets.map(b => b.x + b.w));
+      const offset = (maxX - minX) + 15;
+
+      const newIds = [];
+      targets.forEach(b => {
+        const newBox = {
+          id: 'box_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5),
+          name: b.category === 'question' ? incrementQuestionName(b.name) : b.name,
+          category: b.category,
+          x: Math.min(appState.s1.imgWidth - b.w, b.x + offset),
+          y: b.y,
+          w: b.w,
+          h: b.h,
+          points: b.points,
+          rubric: b.rubric || '',
+          aspect: b.aspect || 'knowledge'
+        };
+        appState.s1.boxes.push(newBox);
+        newIds.push(newBox.id);
+      });
+      appState.s1.selectedIds = newIds;
+      s1RenderBoxes();
+      s1UpdateSidebar();
+      triggerAutoSave();
+    }
+
+    document.getElementById('s1-prop-id').addEventListener('input', (e) => {
+      if (appState.s1.selectedIds.length === 0) return;
+      const sel = appState.s1.boxes.find(b => b.id === appState.s1.selectedIds[appState.s1.selectedIds.length - 1]);
+      if (sel) { sel.name = e.target.value; s1RenderBoxes(); s1UpdateSidebar(); triggerAutoSave(); }
+    });
+
+    document.getElementById('s1-prop-points').addEventListener('input', (e) => {
+      const p = Number(e.target.value) || 0;
+      appState.s1.selectedIds.forEach(id => {
+        const sel = appState.s1.boxes.find(b => b.id === id);
+        if (sel) sel.points = p;
+      });
+      s1RenderBoxes();
+      s1UpdateSidebar();
+      triggerAutoSave();
+    });
+
+    document.getElementById('s1-prop-rubric').addEventListener('input', (e) => {
+      if (appState.s1.selectedIds.length === 0) return;
+      const sel = appState.s1.boxes.find(b => b.id === appState.s1.selectedIds[appState.s1.selectedIds.length - 1]);
+      if (sel) { sel.rubric = e.target.value; triggerAutoSave(); }
+    });
+
+    document.querySelectorAll('#s1-change-cat-group button').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const cat = btn.dataset.cat;
+        appState.s1.selectedIds.forEach(id => {
+          const sel = appState.s1.boxes.find(b => b.id === id);
+          if (sel) {
+            sel.category = cat;
+            if (cat !== 'question' && (sel.name.startsWith('問') || sel.name.includes('('))) {
+              sel.name = getCategoryMeta(cat).label;
+            }
+          }
+        });
+        s1RenderBoxes();
+        s1UpdateSidebar();
+        triggerAutoSave();
+      });
+    });
+
+    document.getElementById('s1-btn-aspect-knowledge').onclick = () => {
+      appState.s1.selectedIds.forEach(id => {
+        const sel = appState.s1.boxes.find(b => b.id === id);
+        if (sel) sel.aspect = 'knowledge';
+      });
+      s1RenderBoxes();
+      s1UpdateSidebar();
+      triggerAutoSave();
+    };
+
+    document.getElementById('s1-btn-aspect-thinking').onclick = () => {
+      appState.s1.selectedIds.forEach(id => {
+        const sel = appState.s1.boxes.find(b => b.id === id);
+        if (sel) sel.aspect = 'thinking';
+      });
+      s1RenderBoxes();
+      s1UpdateSidebar();
+      triggerAutoSave();
+    };
+
+    document.getElementById('s1-clone-down-btn').onclick = s1CloneSelectedBoxesDown;
+    document.getElementById('s1-clone-right-btn').onclick = s1CloneSelectedBoxesRight;
+    document.getElementById('s1-del-box-btn').onclick = s1DeleteSelectedBoxes;
+    document.getElementById('s1-fit-btn').onclick = s1FitView;
+    document.getElementById('s1-zoom-in-btn').onclick = () => { appState.s1.scale = Math.min(6.0, appState.s1.scale * 1.2); s1ApplyTransform(); };
+    document.getElementById('s1-zoom-out-btn').onclick = () => { appState.s1.scale = Math.max(0.1, appState.s1.scale / 1.2); s1ApplyTransform(); };
+
+    // Step 1 Excel
+    document.getElementById('s1-btn-export-excel').onclick = () => {
+      if (appState.s1.boxes.length === 0) { alert('枠がありません。'); return; }
+      const rows = appState.s1.boxes.map((b, idx) => ({
+        "No": idx + 1,
+        "枠ID": b.id,
+        "設問番号/名称": b.name,
+        "枠種別": b.category === 'question' ? '設問' : getCategoryMeta(b.category).label,
+        "配点": b.category === 'question' ? Number(b.points) : 0,
+        "観点": b.category === 'question' ? (b.aspect === 'thinking' ? '思考' : '知識') : '-',
+        "採点基準メモ": b.rubric || ''
+      }));
+      const ws = XLSX.utils.json_to_sheet(rows);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, "設問マスター");
+      XLSX.writeFile(wb, `marking_template_${new Date().toISOString().slice(0, 10)}.xlsx`);
+    };
+
+    document.getElementById('s1-excel-input').addEventListener('change', (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = (ev) => {
+        try {
+          const data = new Uint8Array(ev.target.result);
+          const wb = XLSX.read(data, { type: 'array' });
+          const json = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]]);
+          let count = 0;
+          json.forEach(row => {
+            const target = appState.s1.boxes.find(b => (row['枠ID'] && b.id === row['枠ID']) || (b.name === String(row['設問番号/名称'])));
+            if (target) {
+              if (row['設問番号/名称']) target.name = String(row['設問番号/名称']);
+              if (row['配点'] !== undefined) target.points = Number(row['配点']) || 0;
+              if (row['観点']) target.aspect = (row['観点'] === '思考' || row['観点'] === 'thinking') ? 'thinking' : 'knowledge';
+              if (row['採点基準メモ'] !== undefined) target.rubric = String(row['採点基準メモ']);
+              count++;
+            }
+          });
+          s1RenderBoxes();
+          s1UpdateSidebar();
+          triggerAutoSave();
+          alert(`Excelから ${count} 件を反映しました。`);
+        } catch (err) {
+          alert('Excel読み込みエラー: ' + err.message);
+        } finally {
+          e.target.value = '';
+        }
+      };
+      reader.readAsArrayBuffer(file);
+    });
+
+    // ================= STEP 2: 串刺し採点ワークスペース ロジック =================
+    function initS2QuestionSelect() {
+      s2QSelect.innerHTML = '';
+      appState.s2.questions.forEach((q, idx) => {
+        const opt = document.createElement('option');
+        opt.value = idx;
+        opt.textContent = `[${q.name}] (${q.points}点)`;
+        s2QSelect.appendChild(opt);
+      });
+      s2QSelect.value = appState.s2.currentQIndex;
+      updateS2HeaderAndModelView();
+    }
+
+    function updateS2HeaderAndModelView() {
+      const q = appState.s2.questions[appState.s2.currentQIndex];
+      if (!q) {
+        s2QMetaBadges.innerHTML = '';
+        s2CurrentQName.textContent = '-';
+        s2ModelAnsContainer.innerHTML = '<span class="text-slate-400 text-xs">模範解答なし</span>';
+        s2ModelPointBadge.textContent = '配点: - 点';
+        s2ModelRubricText.textContent = '設問が選択されていません。';
+        return;
+      }
+
+      s2CurrentQName.textContent = q.name;
+      s2ModelPointBadge.textContent = `配点: ${q.points} 点`;
+      s2ModelRubricText.textContent = q.rubric ? q.rubric : '（採点基準メモなし）';
+
+      if (q.modelAnswerImage && q.modelAnswerImage.length > 50) {
+        s2ModelAnsContainer.innerHTML = `<img src="${q.modelAnswerImage}" class="max-h-full max-w-full object-contain pointer-events-none" alt="模範解答">`;
+      } else {
+        s2ModelAnsContainer.innerHTML = '<span class="text-slate-400 text-xs">模範画像なし</span>';
+      }
+
+      const aspectBadge = q.aspect === 'thinking'
+        ? '<span class="bg-purple-900/80 text-purple-200 border border-purple-500 px-2 py-0.5 rounded font-bold">思考・判断</span>'
+        : '<span class="bg-sky-900/80 text-sky-200 border border-sky-500 px-2 py-0.5 rounded font-bold">知識・技能</span>';
+
+      s2QMetaBadges.innerHTML = `
+        <span class="bg-slate-700 text-amber-300 font-mono font-bold px-2 py-0.5 rounded border border-slate-600">配点: ${q.points}点</span>
+        ${aspectBadge}
+      `;
+    }
+
+    function onS2QuestionChanged(newIndex) {
+      appState.s2.currentQIndex = newIndex;
+      s2QSelect.value = newIndex;
+      appState.s2.activeStudentIndex = 0;
+      appState.s2.tileOffsets = {};
+      updateS2HeaderAndModelView();
+      renderS2Tiles();
+      updateS2Progress();
+      document.getElementById('s2-grid-container').scrollTop = 0;
+    }
+
+    s2QSelect.addEventListener('change', (e) => onS2QuestionChanged(parseInt(e.target.value, 10)));
+    document.getElementById('s2-prev-q-btn').addEventListener('click', () => {
+      if (appState.s2.currentQIndex > 0) onS2QuestionChanged(appState.s2.currentQIndex - 1);
+    });
+    document.getElementById('s2-next-q-btn').addEventListener('click', () => {
+      if (appState.s2.currentQIndex < appState.s2.questions.length - 1) onS2QuestionChanged(appState.s2.currentQIndex + 1);
+    });
+
+    s2DoubleModeToggle.addEventListener('change', (e) => {
+      appState.s2.isDoubleMode = e.target.checked;
+      renderS2Tiles();
+      updateS2Progress();
+      triggerAutoSave();
+    });
+
+    function setS2Stream(streamNum) {
+      appState.s2.currentStream = streamNum;
+      if (streamNum === 1) {
+        s2BtnStream1.className = 'px-2.5 py-1 rounded font-bold text-xs bg-indigo-600 text-white shadow transition flex items-center space-x-1';
+        s2BtnStream2.className = 'px-2.5 py-1 rounded font-bold text-xs bg-slate-800 hover:bg-slate-700 text-slate-400 border border-slate-700 transition flex items-center space-x-1';
+        s2CurrentStreamBadge.textContent = '系統1 (A)';
+        s2CurrentStreamBadge.className = 'font-bold text-indigo-400 font-mono';
+        s2StreamLabelProgress.textContent = '系統1:';
+        s2StreamLabelProgress.className = 'text-indigo-400 font-bold';
+      } else {
+        s2BtnStream2.className = 'px-2.5 py-1 rounded font-bold text-xs bg-purple-600 text-white shadow transition flex items-center space-x-1';
+        s2BtnStream1.className = 'px-2.5 py-1 rounded font-bold text-xs bg-slate-800 hover:bg-slate-700 text-slate-400 border border-slate-700 transition flex items-center space-x-1';
+        s2CurrentStreamBadge.textContent = '系統2 (B)';
+        s2CurrentStreamBadge.className = 'font-bold text-purple-400 font-mono';
+        s2StreamLabelProgress.textContent = '系統2:';
+        s2StreamLabelProgress.className = 'text-purple-400 font-bold';
+      }
+      renderS2Tiles();
+      updateS2Progress();
+    }
+
+    s2BtnStream1.addEventListener('click', () => setS2Stream(1));
+    s2BtnStream2.addEventListener('click', () => setS2Stream(2));
+
+    function renderS2Tiles() {
+      if (appState.s2.students.length === 0) {
+        s2EmptyWorkspace.classList.remove('hidden');
+        s2TilesGrid.classList.add('hidden');
+        return;
+      }
+
+      s2EmptyWorkspace.classList.add('hidden');
+      s2TilesGrid.classList.remove('hidden');
+      s2TilesGrid.innerHTML = '';
+
+      const curQ = appState.s2.questions[appState.s2.currentQIndex];
+      if (!curQ) return;
+
+      let mismatchCount = 0;
+
+      appState.s2.students.forEach((std, idx) => {
+        const s1 = std.scores1[curQ.id];
+        const s2 = std.scores2[curQ.id];
+        const isMarked1 = s1 !== null && s1 !== undefined;
+        const isMarked2 = s2 !== null && s2 !== undefined;
+        const isMismatch = isMarked1 && isMarked2 && s1 !== s2;
+        if (isMismatch) mismatchCount++;
+
+        const activeScore = appState.s2.currentStream === 1 ? s1 : s2;
+        const isCurrentMarked = activeScore !== null && activeScore !== undefined;
+
+        if (appState.s2.filter === 'unmarked' && isCurrentMarked) return;
+        if (appState.s2.filter === 'marked' && !isCurrentMarked) return;
+        if (appState.s2.filter === 'mismatch' && !isMismatch) return;
+
+        const card = document.createElement('div');
+        const isActive = idx === appState.s2.activeStudentIndex;
+
+        let cardBorderClass = 'border-slate-700 hover:border-slate-500';
+        if (isMismatch) cardBorderClass = 'mismatch-card border-rose-500 ring-1 ring-rose-500';
+
+        card.className = `student-card bg-slate-800 rounded-xl border p-2 flex flex-col justify-between transition-all relative shadow ${
+          isActive ? 'active-card border-indigo-500 ring-2 ring-indigo-500' : cardBorderClass
+        }`;
+        card.dataset.index = idx;
+
+        card.onclick = (e) => {
+          if (!e.target.closest('.peeking-window')) {
+            appState.s2.activeStudentIndex = idx;
+            highlightS2ActiveCard();
+          }
+        };
+
+        let badgeHtml = '';
+        if (appState.s2.isDoubleMode) {
+          const t1Text = isMarked1 ? `${s1}点` : '-';
+          const t2Text = isMarked2 ? `${s2}点` : '-';
+          if (isMismatch) {
+            badgeHtml = `<div class="bg-rose-600 text-white font-bold px-1.5 py-0.5 rounded text-[10px] flex items-center space-x-1 shadow animate-pulse">
+              <i class="fa-solid fa-triangle-exclamation"></i><span>${t1Text} vs ${t2Text}</span>
+            </div>`;
+          } else if (isMarked1 && isMarked2 && s1 === s2) {
+            badgeHtml = `<div class="bg-emerald-600 text-white font-bold px-1.5 py-0.5 rounded text-[10px] flex items-center space-x-1 shadow">
+              <i class="fa-solid fa-lock"></i><span>${s1}点 確定</span>
+            </div>`;
+          } else {
+            badgeHtml = `<div class="bg-slate-700 text-slate-300 font-semibold px-1.5 py-0.5 rounded text-[10px]">1:${t1Text} | 2:${t2Text}</div>`;
+          }
+        } else {
+          if (isMarked1) {
+            if (s1 === curQ.points) badgeHtml = `<div class="bg-emerald-600 text-white font-bold px-2 py-0.5 rounded text-xs flex items-center space-x-1 shadow"><i class="fa-solid fa-circle-check"></i><span>${s1}点</span></div>`;
+            else if (s1 === 0) badgeHtml = `<div class="bg-rose-600 text-white font-bold px-2 py-0.5 rounded text-xs flex items-center space-x-1 shadow"><i class="fa-solid fa-xmark"></i><span>0点</span></div>`;
+            else badgeHtml = `<div class="bg-amber-600 text-white font-bold px-2 py-0.5 rounded text-xs flex items-center space-x-1 shadow"><i class="fa-solid fa-pen-ruler"></i><span>${s1}点</span></div>`;
+          } else {
+            badgeHtml = `<div class="bg-slate-700 text-slate-400 font-semibold px-2 py-0.5 rounded text-xs">未採点</div>`;
+          }
+        }
+
+        const offset = appState.s2.tileOffsets[idx] || { x: 0, y: 0 };
+
+        card.innerHTML = `
+          <div class="flex items-center justify-between mb-1.5 pb-1 border-b border-slate-700">
+            <span class="font-mono font-bold text-xs text-white">#${std.studentNum}</span>
+            ${badgeHtml}
+          </div>
+          <div class="peeking-window relative h-28 bg-white rounded border border-slate-600 overflow-hidden shadow-inner" data-index="${idx}">
+            <canvas class="tile-canvas block w-full h-full pointer-events-none"></canvas>
+            <div class="absolute bottom-1 right-1 bg-slate-900/70 text-slate-300 text-[9px] px-1 py-0.2 rounded font-mono pointer-events-none">
+              ${offset.x !== 0 || offset.y !== 0 ? 'ずらし中' : 'ドラッグ可'}
+            </div>
+          </div>
+          <div class="mt-1.5 flex justify-between items-center text-[10px] text-slate-400 font-mono">
+            <span>${std.name || '生徒'}</span>
+            <span>配点: ${curQ.points}</span>
+          </div>
+        `;
+
+        s2TilesGrid.appendChild(card);
+        const tileCanvas = card.querySelector('.tile-canvas');
+        drawPeekingTile(tileCanvas, std, curQ, offset);
+        setupPeekingWindowInteraction(card.querySelector('.peeking-window'), idx, std, curQ);
+      });
+
+      if (appState.s2.isDoubleMode && mismatchCount > 0) {
+        s2MismatchCounterBox.classList.remove('hidden');
+        s2MismatchCountEl.textContent = mismatchCount;
+      } else {
+        s2MismatchCounterBox.classList.add('hidden');
+      }
+
+      highlightS2ActiveCard();
+    }
+
+    function drawPeekingTile(canvasEl, student, question, offset) {
+      const ctx = canvasEl.getContext('2d');
+      const w = canvasEl.clientWidth || 240;
+      const h = canvasEl.clientHeight || 112;
+      canvasEl.width = w;
+      canvasEl.height = h;
+
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(0, 0, w, h);
+
+      if (student.fullPageImgElement && student.fullPageImgElement.complete) {
+        const fullImg = student.fullPageImgElement;
+        const norm = question.normalized || { x: 0.1, y: 0.1, w: 0.25, h: 0.05 };
+        const baseCropX = norm.x * fullImg.width;
+        const baseCropY = norm.y * fullImg.height;
+        const baseCropW = norm.w * fullImg.width;
+        const baseCropH = norm.h * fullImg.height;
+        const scaleFactor = baseCropW / w;
+        const cropX = baseCropX - offset.x * scaleFactor;
+        const cropY = baseCropY - offset.y * scaleFactor;
+        ctx.drawImage(fullImg, cropX, cropY, baseCropW, baseCropH, 0, 0, w, h);
+      } else if (student.images && student.images[question.id]) {
+        const img = new Image();
+        img.onload = () => ctx.drawImage(img, offset.x, offset.y, w, h);
+        img.src = student.images[question.id];
+      }
+    }
+
+    function setupPeekingWindowInteraction(windowEl, studentIdx, student, question) {
+      let isDragging = false;
+      let startX = 0, startY = 0;
+      let initialOffset = { x: 0, y: 0 };
+
+      windowEl.addEventListener('mousedown', (e) => {
+        if (e.button !== 0) return;
+        isDragging = true;
+        startX = e.clientX;
+        startY = e.clientY;
+        initialOffset = { ...(appState.s2.tileOffsets[studentIdx] || { x: 0, y: 0 }) };
+        appState.s2.activeStudentIndex = studentIdx;
+        highlightS2ActiveCard();
+        e.stopPropagation();
+      });
+
+      window.addEventListener('mousemove', (e) => {
+        if (!isDragging) return;
+        appState.s2.tileOffsets[studentIdx] = {
+          x: initialOffset.x + (e.clientX - startX),
+          y: initialOffset.y + (e.clientY - startY)
+        };
+        const canvasEl = windowEl.querySelector('.tile-canvas');
+        if (canvasEl) drawPeekingTile(canvasEl, student, question, appState.s2.tileOffsets[studentIdx]);
+      });
+
+      window.addEventListener('mouseup', () => { isDragging = false; });
+      windowEl.addEventListener('dblclick', (e) => {
+        e.stopPropagation();
+        appState.s2.tileOffsets[studentIdx] = { x: 0, y: 0 };
+        const canvasEl = windowEl.querySelector('.tile-canvas');
+        if (canvasEl) drawPeekingTile(canvasEl, student, question, { x: 0, y: 0 });
+      });
+    }
+
+    function highlightS2ActiveCard() {
+      const cards = document.querySelectorAll('#s2-tiles-grid .student-card');
+      cards.forEach(card => {
+        const idx = parseInt(card.dataset.index, 10);
+        if (idx === appState.s2.activeStudentIndex) {
+          card.classList.add('active-card');
+          card.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        } else {
+          card.classList.remove('active-card');
+        }
+      });
+    }
+
+    // Step 2 採点キーバインド（★カスタムキー対応★）
+    window.addEventListener('keydown', (e) => {
+      if (appState.currentStep !== 2) return;
+      if (appState.listeningKeyType) return;
+      if (!zoomModal.classList.contains('hidden') || !studentNumModal.classList.contains('hidden')) {
+        if (!zoomModal.classList.contains('hidden') && (e.code === 'Space' || e.key === 'Escape')) {
+          e.preventDefault();
+          closeModal();
+        }
+        return;
+      }
+
+      if (appState.s2.students.length === 0 || appState.s2.questions.length === 0) return;
+      const curQ = appState.s2.questions[appState.s2.currentQIndex];
+      const maxPts = curQ.points;
+      const pressedKey = e.key.toLowerCase();
+
+      // ★ カスタマイズされた満点キー
+      if (pressedKey === appState.customKeys.correct) {
+        e.preventDefault();
+        assignS2Score(maxPts);
+        return;
+      }
+
+      // ★ カスタマイズされた0点キー
+      if (pressedKey === appState.customKeys.wrong) {
+        e.preventDefault();
+        assignS2Score(0);
+        return;
+      }
+
+      // テンキー・数字キー: 部分点
+      if (/^[0-9]$/.test(e.key)) {
+        e.preventDefault();
+        const inputNum = parseInt(e.key, 10);
+        if (inputNum <= maxPts) assignS2Score(inputNum);
+        else {
+          const activeCard = document.querySelector('#s2-tiles-grid .student-card.active-card');
+          if (activeCard) {
+            activeCard.classList.add('bg-rose-900/60');
+            setTimeout(() => activeCard.classList.remove('bg-rose-900/60'), 250);
+          }
+        }
+        return;
+      }
+
+      if (e.key === 'ArrowRight' || e.key === 'ArrowDown') { e.preventDefault(); moveS2Active(1); return; }
+      if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') { e.preventDefault(); moveS2Active(-1); return; }
+      if (e.key === 'PageDown') { e.preventDefault(); document.getElementById('s2-next-q-btn').click(); return; }
+      if (e.key === 'PageUp') { e.preventDefault(); document.getElementById('s2-prev-q-btn').click(); return; }
+      if (e.code === 'Space') { e.preventDefault(); openModal(); }
+    });
+
+    function assignS2Score(score) {
+      const curQ = appState.s2.questions[appState.s2.currentQIndex];
+      const student = appState.s2.students[appState.s2.activeStudentIndex];
+      if (!student) return;
+
+      if (appState.s2.currentStream === 1) student.scores1[curQ.id] = score;
+      else student.scores2[curQ.id] = score;
+
+      renderS2Tiles();
+      updateS2Progress();
+      triggerAutoSave();
+      moveS2Active(1);
+    }
+
+    function moveS2Active(delta) {
+      const newIdx = appState.s2.activeStudentIndex + delta;
+      if (newIdx >= 0 && newIdx < appState.s2.students.length) {
+        appState.s2.activeStudentIndex = newIdx;
+        highlightS2ActiveCard();
+      }
+    }
+
+    function updateS2Progress() {
+      if (appState.s2.students.length === 0 || appState.s2.questions.length === 0) return;
+      const curQ = appState.s2.questions[appState.s2.currentQIndex];
+      const targetScoresKey = appState.s2.currentStream === 1 ? 'scores1' : 'scores2';
+      const markedCount = appState.s2.students.filter(s => s[targetScoresKey][curQ.id] !== null && s[targetScoresKey][curQ.id] !== undefined).length;
+      const total = appState.s2.students.length;
+      const pct = Math.round((markedCount / total) * 100);
+
+      s2ProgressText.textContent = `${markedCount}/${total}`;
+      s2ProgressBar.style.width = `${pct}%`;
+    }
+
+    document.getElementById('s2-filter-status').addEventListener('change', (e) => {
+      appState.s2.filter = e.target.value;
+      renderS2Tiles();
+    });
+
+    // 拡大モーダル
+    let modalPan = { x: 0, y: 0, isDragging: false, startX: 0, startY: 0 };
+    function openModal() {
+      const curQ = appState.s2.questions[appState.s2.currentQIndex];
+      const student = appState.s2.students[appState.s2.activeStudentIndex];
+      if (!student) return;
+
+      modalTitle.textContent = `出席番号 ${student.studentNum}番 (${student.name}) - 設問 ${curQ.name}`;
+      modalFullImg.src = student.fullPageImage || (student.images && student.images[curQ.id]) || '';
+
+      const norm = curQ.normalized || { x: 0.1, y: 0.1, w: 0.25, h: 0.05 };
+      setTimeout(() => {
+        if (student.fullPageImgElement) {
+          const vw = modalViewport.clientWidth;
+          const vh = modalViewport.clientHeight;
+          const imgW = modalFullImg.clientWidth || student.fullPageImgElement.width;
+          const imgH = modalFullImg.clientHeight || student.fullPageImgElement.height;
+          modalPan.x = -(norm.x + norm.w / 2) * imgW + vw / 2;
+          modalPan.y = -(norm.y + norm.h / 2) * imgH + vh / 2;
+          applyModalTransform();
+        }
+      }, 50);
+      zoomModal.classList.remove('hidden');
+    }
+
+    function closeModal() { zoomModal.classList.add('hidden'); }
+    function applyModalTransform() {
+      modalCanvasWrapper.style.transform = `matrix(1, 0, 0, 1, ${modalPan.x}, ${modalPan.y})`;
+    }
+
+    modalViewport.addEventListener('mousedown', (e) => {
+      modalPan.isDragging = true;
+      modalPan.startX = e.clientX - modalPan.x;
+      modalPan.startY = e.clientY - modalPan.y;
+      e.preventDefault();
+    });
+    window.addEventListener('mousemove', (e) => {
+      if (!modalPan.isDragging) return;
+      modalPan.x = e.clientX - modalPan.startX;
+      modalPan.y = e.clientY - modalPan.startY;
+      applyModalTransform();
+    });
+    window.addEventListener('mouseup', () => { modalPan.isDragging = false; });
+
+    // 出席番号確認モーダル
+    document.getElementById('s2-open-num-modal-btn').addEventListener('click', () => {
+      if (appState.s2.students.length === 0) { alert('先に答案PDFを読み込んでください。'); return; }
+      renderStudentNumModal();
+      studentNumModal.classList.remove('hidden');
+      setTimeout(() => {
+        const firstInput = document.querySelector('.std-num-input');
+        if (firstInput) firstInput.focus();
+      }, 100);
+    });
+
+    function closeStudentNumModal() {
+      appState.s2.students.sort((a, b) => (Number(a.studentNum) || 0) - (Number(b.studentNum) || 0));
+      studentNumModal.classList.add('hidden');
+      renderS2Tiles();
+      triggerAutoSave();
+    }
+
+    function renderStudentNumModal() {
+      studentNumList.innerHTML = '';
+      appState.s2.students.forEach((std, idx) => {
+        const row = document.createElement('div');
+        row.className = 'grid grid-cols-12 gap-2 items-center bg-slate-800/80 p-2 rounded border border-slate-700 text-xs';
+        const numImgSrc = std.metaImages?.student_num || '';
+        const nameImgSrc = std.metaImages?.student_name || '';
+
+        row.innerHTML = `
+          <span class="col-span-1 font-mono text-slate-400 font-bold">P.${std.pageIndex}</span>
+          <div class="col-span-4 h-14 bg-white rounded border border-slate-600 flex items-center justify-center overflow-hidden p-1">
+            ${numImgSrc ? `<img src="${numImgSrc}" class="max-h-full max-w-full object-contain">` : '<span class="text-slate-400 text-[10px]">番号枠なし</span>'}
+          </div>
+          <div class="col-span-4 h-14 bg-white rounded border border-slate-600 flex items-center justify-center overflow-hidden p-1">
+            ${nameImgSrc ? `<img src="${nameImgSrc}" class="max-h-full max-w-full object-contain">` : '<span class="text-slate-400 text-[10px]">氏名枠なし</span>'}
+          </div>
+          <div class="col-span-3 flex items-center space-x-1.5">
+            <input type="number" min="1" value="${std.studentNum}" data-index="${idx}" class="std-num-input w-20 bg-slate-900 border border-slate-600 rounded px-2 py-1 text-white font-mono font-bold text-center text-sm focus:border-indigo-500 outline-none">
+            <span class="text-slate-400 text-[11px]">番</span>
+          </div>
+        `;
+        studentNumList.appendChild(row);
+      });
+
+      document.querySelectorAll('.std-num-input').forEach((input, i, allInputs) => {
+        input.addEventListener('change', (e) => {
+          const idx = parseInt(e.target.dataset.index, 10);
+          const val = parseInt(e.target.value, 10);
+          if (!isNaN(val)) {
+            appState.s2.students[idx].studentNum = val;
+            appState.s2.students[idx].name = `生徒 ${val}`;
+          }
+        });
+        input.addEventListener('keydown', (e) => {
+          if (e.key === 'Enter') {
+            e.preventDefault();
+            if (i + 1 < allInputs.length) { allInputs[i + 1].focus(); allInputs[i + 1].select(); }
+            else closeStudentNumModal();
+          }
+        });
+      });
+    }
+
+    // 答案PDF展開
+    async function processStudentsPdf(file) {
+      if (appState.s2.questions.length === 0) {
+        alert('設問枠が設定されていません。Step 1 で枠を設定してください。');
+        return;
+      }
+
+      showLoading('答案PDFを展開中...', 'ページ 1 を解析中...');
+      try {
+        const arrayBuffer = await file.arrayBuffer();
+        const pdf = await pdfjsLib.getDocument({
+          data: arrayBuffer,
+          cMapUrl: 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/cmaps/',
+          cMapPacked: true
+        }).promise;
+
+        const totalPages = pdf.numPages;
+        const newStudents = [];
+        const vCanvas = document.createElement('canvas');
+        const vCtx = vCanvas.getContext('2d');
+        const cropCanvas = document.createElement('canvas');
+        const cropCtx = cropCanvas.getContext('2d');
+
+        for (let pageNum = 1; pageNum <= totalPages; pageNum++) {
+          loadingSubtitle.textContent = `ページ ${pageNum} / ${totalPages} を展開中... (${Math.round((pageNum/totalPages)*100)}%)`;
+
+          const page = await pdf.getPage(pageNum);
+          const viewport = page.getViewport({ scale: 2.2 });
+          vCanvas.width = viewport.width;
+          vCanvas.height = viewport.height;
+
+          await page.render({ canvasContext: vCtx, viewport: viewport }).promise;
+
+          const fullPageDataUrl = vCanvas.toDataURL('image/jpeg', 0.82);
+          const fullPageImgEl = new Image();
+          fullPageImgEl.src = fullPageDataUrl;
+
+          const stdImages = {};
+          const stdScores1 = {};
+          const stdScores2 = {};
+          const metaImages = {};
+
+          for (const q of appState.s2.questions) {
+            const norm = q.normalized || { x: 0, y: 0, w: 0.2, h: 0.1 };
+            const cropX = Math.round(norm.x * vCanvas.width);
+            const cropY = Math.round(norm.y * vCanvas.height);
+            const cropW = Math.round(norm.w * vCanvas.width);
+            const cropH = Math.round(norm.h * vCanvas.height);
+
+            cropCanvas.width = cropW;
+            cropCanvas.height = cropH;
+            cropCtx.drawImage(vCanvas, cropX, cropY, cropW, cropH, 0, 0, cropW, cropH);
+
+            stdImages[q.id] = cropCanvas.toDataURL('image/jpeg', 0.85);
+            stdScores1[q.id] = null;
+            stdScores2[q.id] = null;
+          }
+
+          for (const mb of appState.s2.metaBoxes) {
+            const norm = mb.normalized || { x: 0, y: 0, w: 0.2, h: 0.1 };
+            const cropX = Math.round(norm.x * vCanvas.width);
+            const cropY = Math.round(norm.y * vCanvas.height);
+            const cropW = Math.round(norm.w * vCanvas.width);
+            const cropH = Math.round(norm.h * vCanvas.height);
+
+            cropCanvas.width = cropW;
+            cropCanvas.height = cropH;
+            cropCtx.drawImage(vCanvas, cropX, cropY, cropW, cropH, 0, 0, cropW, cropH);
+            metaImages[mb.category] = cropCanvas.toDataURL('image/jpeg', 0.85);
+          }
+
+          newStudents.push({
+            pageIndex: pageNum,
+            studentNum: pageNum,
+            name: `生徒 ${pageNum}`,
+            scores1: stdScores1,
+            scores2: stdScores2,
+            images: stdImages,
+            metaImages: metaImages,
+            fullPageImage: fullPageDataUrl,
+            fullPageImgElement: fullPageImgEl
+          });
+        }
+
+        appState.s2.students = newStudents;
+        appState.s2.activeStudentIndex = 0;
+        appState.s2.tileOffsets = {};
+        renderS2Tiles();
+        updateS2Progress();
+        triggerAutoSave();
+
+        setTimeout(() => {
+          if (confirm('答案PDFの展開が完了しました！\n出席番号の確認・修正画面を開きますか？')) {
+            document.getElementById('s2-open-num-modal-btn').click();
+          }
+        }, 200);
+
+      } catch (err) {
+        alert('答案PDFの処理中にエラーが発生しました: ' + err.message);
+      } finally {
+        hideLoading();
+      }
+    }
+
+    document.getElementById('s2-students-pdf-input').addEventListener('change', async (e) => {
+      const file = e.target.files[0];
+      if (file) {
+        await processStudentsPdf(file);
+        e.target.value = '';
+      }
+    });
+
+    function getMismatchCount() {
+      let count = 0;
+      appState.s2.students.forEach(std => {
+        appState.s2.questions.forEach(q => {
+          const s1 = std.scores1[q.id];
+          const s2 = std.scores2[q.id];
+          if (s1 !== null && s2 !== null && s1 !== s2) {
+            count++;
+          }
+        });
+      });
+      return count;
+    }
+
+    // 成績Excel出力 (★不一致時は完全ブロック★)
+    document.getElementById('s2-export-results-btn').addEventListener('click', () => {
+      if (appState.s2.students.length === 0) { alert('採点データがありません。'); return; }
+
+      // ダブル採点時の不一致チェック（完全ブロック）
+      if (appState.s2.isDoubleMode) {
+        const mismatchCount = getMismatchCount();
+        if (mismatchCount > 0) {
+          alert(`⚠️ 系統1と系統2の採点に「不一致」が ${mismatchCount} 件残っています。\nすべての不一致を解消するまでExcel出力はできません。`);
+          return;
+        }
+      }
+
+      const sortedStudents = [...appState.s2.students].sort((a, b) => (Number(a.studentNum) || 0) - (Number(b.studentNum) || 0));
+
+      const rows = sortedStudents.map(std => {
+        let total = 0, kTotal = 0, tTotal = 0;
+        const qScoresMap = {};
+
+        appState.s2.questions.forEach(q => {
+          const s1 = std.scores1[q.id];
+          let finalScore = s1;
+
+          qScoresMap[q.name] = (finalScore !== null && finalScore !== undefined) ? finalScore : '';
+
+          if (typeof finalScore === 'number') {
+            total += finalScore;
+            if (q.aspect === 'thinking') tTotal += finalScore;
+            else kTotal += finalScore;
+          }
+        });
+
+        const row = {
+          "出席番号": Number(std.studentNum) || std.studentNum,
+          "生徒氏名": std.name,
+          "知識合計": kTotal,
+          "思考合計": tTotal,
+          "総合得点": total
+        };
+
+        appState.s2.questions.forEach(q => { row[q.name] = qScoresMap[q.name]; });
+        return row;
+      });
+
+      const ws = XLSX.utils.json_to_sheet(rows);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, "成績一覧");
+      XLSX.writeFile(wb, `marking_results_${new Date().toISOString().slice(0, 10)}.xlsx`);
+    });
+
+    // 生徒返却用PDF一括生成 (★不一致時は完全ブロック★)
+    document.getElementById('s2-export-return-pdf-btn').addEventListener('click', async () => {
+      if (appState.s2.students.length === 0) { alert('出力対象の答案データがありません。'); return; }
+
+      // ダブル採点時の不一致チェック（完全ブロック）
+      if (appState.s2.isDoubleMode) {
+        const mismatchCount = getMismatchCount();
+        if (mismatchCount > 0) {
+          alert(`⚠️ 系統1と系統2の採点に「不一致」が ${mismatchCount} 件残っています。\nすべての不一致を解消するまで返却用PDFは出力できません。`);
+          return;
+        }
+      }
+
+      let hasUnmarked = false;
+      appState.s2.students.forEach(std => {
+        appState.s2.questions.forEach(q => {
+          const s1 = std.scores1[q.id];
+          const s2 = std.scores2[q.id];
+          if (s1 === null && s2 === null) hasUnmarked = true;
+        });
+      });
+
+      if (hasUnmarked) {
+        if (!confirm('⚠️ 未採点の設問が残っています。このまま返却用PDFを出力しますか？')) return;
+      }
+
+      showLoading('生徒返却用PDFを生成中...', '答案画像を合成中...');
+
+      try {
+        const sortedStudents = [...appState.s2.students].sort((a, b) => (Number(a.studentNum) || 0) - (Number(b.studentNum) || 0));
+        const { PDFDocument } = PDFLib;
+        const pdfDoc = await PDFDocument.create();
+
+        const drawCanvas = document.createElement('canvas');
+        const drawCtx = drawCanvas.getContext('2d');
+
+        for (let i = 0; i < sortedStudents.length; i++) {
+          const std = sortedStudents[i];
+          loadingSubtitle.textContent = `生徒 ${i + 1} / ${sortedStudents.length} 名の答案を印字中...`;
+
+          if (!std.fullPageImgElement) continue;
+          const fullImg = std.fullPageImgElement;
+
+          drawCanvas.width = fullImg.width;
+          drawCanvas.height = fullImg.height;
+
+          drawCtx.clearRect(0, 0, drawCanvas.width, drawCanvas.height);
+          drawCtx.drawImage(fullImg, 0, 0);
+
+          drawCtx.strokeStyle = '#dc2626';
+          drawCtx.fillStyle = '#dc2626';
+          drawCtx.lineWidth = Math.max(3, Math.round(drawCanvas.width * 0.0035));
+
+          let totalScore = 0, kTotal = 0, tTotal = 0;
+
+          appState.s2.questions.forEach(q => {
+            const s1 = std.scores1[q.id];
+            const score = s1;
+
+            if (score !== null && score !== undefined) {
+              totalScore += score;
+              if (q.aspect === 'thinking') tTotal += score;
+              else kTotal += score;
+
+              const norm = q.normalized || { x: 0.1, y: 0.1, w: 0.25, h: 0.05 };
+              const qx = norm.x * drawCanvas.width;
+              const qy = norm.y * drawCanvas.height;
+              const qw = norm.w * drawCanvas.width;
+              const qh = norm.h * drawCanvas.height;
+
+              const markCenterX = qx + qw - Math.min(qw * 0.25, 45);
+              const markCenterY = qy + Math.min(qh * 0.5, 35);
+              const radius = Math.min(qw * 0.2, qh * 0.45, 30);
+
+              if (score === q.points) {
+                drawCtx.beginPath();
+                drawCtx.arc(markCenterX, markCenterY, radius, 0, Math.PI * 2);
+                drawCtx.stroke();
+              } else if (score === 0) {
+                const sz = radius * 0.85;
+                drawCtx.beginPath();
+                drawCtx.moveTo(markCenterX - sz, markCenterY - sz);
+                drawCtx.lineTo(markCenterX + sz, markCenterY + sz);
+                drawCtx.moveTo(markCenterX + sz, markCenterY - sz);
+                drawCtx.lineTo(markCenterX - sz, markCenterY + sz);
+                drawCtx.stroke();
+              } else {
+                const sz = radius * 0.9;
+                drawCtx.beginPath();
+                drawCtx.moveTo(markCenterX - sz, markCenterY + sz);
+                drawCtx.lineTo(markCenterX + sz, markCenterY - sz);
+                drawCtx.stroke();
+
+                const fontSize = Math.max(20, Math.round(radius * 1.3));
+                drawCtx.font = `bold ${fontSize}px sans-serif`;
+                drawCtx.fillText(`+${score}`, markCenterX + radius * 0.4, markCenterY + radius * 0.5);
+              }
+            }
+          });
+
+          appState.s2.metaBoxes.forEach(mb => {
+            const norm = mb.normalized;
+            if (!norm) return;
+            const bx = norm.x * drawCanvas.width;
+            const by = norm.y * drawCanvas.height;
+            const bw = norm.w * drawCanvas.width;
+            const bh = norm.h * drawCanvas.height;
+
+            if (mb.category === 'total_score') {
+              const fontSize = Math.max(36, Math.round(bh * 0.7));
+              drawCtx.font = `bold ${fontSize}px sans-serif`;
+              drawCtx.textAlign = 'center';
+              drawCtx.textBaseline = 'middle';
+              drawCtx.fillText(`${totalScore}`, bx + bw / 2, by + bh / 2);
+            } else if (mb.category === 'aspect_k_score') {
+              const fontSize = Math.max(24, Math.round(bh * 0.6));
+              drawCtx.font = `bold ${fontSize}px sans-serif`;
+              drawCtx.textAlign = 'center';
+              drawCtx.textBaseline = 'middle';
+              drawCtx.fillText(`${kTotal}`, bx + bw / 2, by + bh / 2);
+            } else if (mb.category === 'aspect_t_score') {
+              const fontSize = Math.max(24, Math.round(bh * 0.6));
+              drawCtx.font = `bold ${fontSize}px sans-serif`;
+              drawCtx.textAlign = 'center';
+              drawCtx.textBaseline = 'middle';
+              drawCtx.fillText(`${tTotal}`, bx + bw / 2, by + bh / 2);
+            }
+          });
+
+          drawCtx.textAlign = 'start';
+          drawCtx.textBaseline = 'alphabetic';
+
+          const pageJpgDataUrl = drawCanvas.toDataURL('image/jpeg', 0.85);
+          const jpgImage = await pdfDoc.embedJpg(pageJpgDataUrl);
+          const page = pdfDoc.addPage([jpgImage.width, jpgImage.height]);
+          page.drawImage(jpgImage, { x: 0, y: 0, width: jpgImage.width, height: jpgImage.height });
+        }
+
+        loadingSubtitle.textContent = 'PDFファイルをパッケージ中...';
+        const pdfBytes = await pdfDoc.save();
+
+        const blob = new Blob([pdfBytes], { type: 'application/pdf' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `graded_return_sheets_${new Date().toISOString().slice(0, 10)}.pdf`;
+        a.click();
+        URL.revokeObjectURL(url);
+      } catch (err) {
+        alert('返却用PDFの生成中にエラーが発生しました: ' + err.message);
+      } finally {
+        hideLoading();
+      }
+    });
+
+    // 共有 JSON 出力
+    document.getElementById('global-export-json-btn').onclick = () => {
+      if (appState.s1.boxes.length === 0) { alert('保存する枠がありません。'); return; }
+      showLoading('JSONファイルを生成中...');
+
+      setTimeout(() => {
+        try {
+          const cropCanvas = document.createElement('canvas');
+          const cropCtx = cropCanvas.getContext('2d');
+
+          const exportItems = appState.s1.boxes.map(box => {
+            let modelImg = null;
+            if (appState.s1.imageLoaded && box.w > 0 && box.h > 0) {
+              cropCanvas.width = box.w;
+              cropCanvas.height = box.h;
+              cropCtx.drawImage(s1Canvas, box.x, box.y, box.w, box.h, 0, 0, box.w, box.h);
+              modelImg = cropCanvas.toDataURL('image/jpeg', 0.88);
+            }
+            return {
+              id: box.id,
+              name: box.name,
+              category: box.category,
+              points: box.category === 'question' ? Number(box.points) : 0,
+              rubric: box.rubric || '',
+              aspect: box.aspect || 'knowledge',
+              modelAnswerImage: modelImg,
+              normalized: {
+                x: +(box.x / appState.s1.imgWidth).toFixed(4),
+                y: +(box.y / appState.s1.imgHeight).toFixed(4),
+                w: +(box.w / appState.s1.imgWidth).toFixed(4),
+                h: +(box.h / appState.s1.imgHeight).toFixed(4)
+              }
+            };
+          });
+
+          const exportData = {
+            version: "2.5",
+            appName: "でじたる採点くん",
+            createdAt: new Date().toISOString(),
+            canvasResolution: { width: appState.s1.imgWidth, height: appState.s1.imgHeight },
+            items: exportItems
+          };
+
+          const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = `marking_template_${new Date().toISOString().slice(0, 10)}.json`;
+          a.click();
+          URL.revokeObjectURL(url);
+        } catch (err) {
+          alert('JSON出力エラー: ' + err.message);
+        } finally {
+          hideLoading();
+        }
+      }, 50);
+    };
+
+    document.getElementById('global-import-json-input').addEventListener('change', (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = (ev) => {
+        try {
+          const json = JSON.parse(ev.target.result);
+          if (!json.items || !Array.isArray(json.items)) throw new Error('JSON形式が不正です。');
+
+          appState.s1.boxes = json.items.map(item => ({
+            id: item.id,
+            name: item.name,
+            category: item.category || 'question',
+            points: item.points || 0,
+            rubric: item.rubric || '',
+            aspect: item.aspect || 'knowledge',
+            x: Math.round(item.normalized.x * (appState.s1.imgWidth || 2000)),
+            y: Math.round(item.normalized.y * (appState.s1.imgHeight || 2800)),
+            w: Math.round(item.normalized.w * (appState.s1.imgWidth || 2000)),
+            h: Math.round(item.normalized.h * (appState.s1.imgHeight || 2800))
+          }));
+
+          appState.s2.questions = json.items.filter(item => !item.category || item.category === 'question');
+          appState.s2.metaBoxes = json.items.filter(item => item.category && item.category !== 'question');
+
+          s1RenderBoxes();
+          s1UpdateSidebar();
+          if (appState.s2.questions.length > 0) initS2QuestionSelect();
+          triggerAutoSave();
+
+          alert(`JSONから ${json.items.length} 件の枠データを読み込みました！`);
+        } catch (err) {
+          alert('JSON読込エラー: ' + err.message);
+        } finally {
+          e.target.value = '';
+        }
+      };
+      reader.readAsText(file);
+    });
+
+    // 起動時自動復旧チェック
+    window.addEventListener('DOMContentLoaded', () => {
+      checkAndRestoreAutoSave();
+    });
+  </script>
+</body>
+</html>
