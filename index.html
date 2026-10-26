@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>でじたる採点くん Ver 3.0</title>
+  <title>でじたる採点くん Ver 3.1</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script>
@@ -41,6 +41,17 @@
       outline-offset: -8px;
       background-color: rgba(99, 102, 241, 0.15) !important;
     }
+    /* サイドバーのドラッグ＆ドロップ並び替え用スタイル */
+    .box-drag-item.dragging {
+      opacity: 0.4;
+      border: 2px dashed #6366f1;
+    }
+    .box-drag-item.drag-over-top {
+      border-top: 3px solid #38bdf8 !important;
+    }
+    .box-drag-item.drag-over-bottom {
+      border-bottom: 3px solid #38bdf8 !important;
+    }
   </style>
 </head>
 <body class="h-screen w-screen flex flex-col bg-slate-900 text-slate-100 overflow-hidden">
@@ -52,7 +63,7 @@
         <i class="fa-solid fa-pen-ruler text-xs"></i>
       </div>
       <span class="font-bold text-sm tracking-wide text-white">でじたる採点くん</span>
-      <span class="text-[10px] bg-slate-800 text-slate-400 px-2 py-0.5 rounded font-mono">Ver 3.0 複数ページ対応版</span>
+      <span class="text-[10px] bg-slate-800 text-slate-400 px-2 py-0.5 rounded font-mono">Ver 3.1 複数ページ＆順序入替版</span>
       <span id="autosave-indicator" class="text-[10px] text-emerald-400 flex items-center space-x-1 ml-2">
         <i class="fa-solid fa-cloud-arrow-up"></i><span>自動保存済</span>
       </span>
@@ -206,14 +217,20 @@
           </div>
         </div>
 
+        <!-- 枠 編集パネル -->
         <div id="s1-selection-panel" class="p-3 border-b border-slate-700 bg-slate-750 hidden">
           <div class="flex justify-between items-center mb-2">
             <span class="font-bold text-indigo-300 flex items-center space-x-1">
               <i class="fa-solid fa-pen-to-square"></i><span id="s1-sel-title">枠 編集</span>
             </span>
-            <button id="s1-del-box-btn" class="text-rose-400 hover:text-rose-300 p-1 font-bold" title="削除 (Delete)">
-              <i class="fa-solid fa-trash-can"></i>
-            </button>
+            <div class="flex items-center space-x-1">
+              <!-- 単一選択時の順序移動ボタン -->
+              <button id="s1-btn-move-up" class="p-1 hover:bg-slate-700 text-slate-300 rounded" title="順序を1つ上へ"><i class="fa-solid fa-arrow-up text-xs"></i></button>
+              <button id="s1-btn-move-down" class="p-1 hover:bg-slate-700 text-slate-300 rounded" title="順序を1つ下へ"><i class="fa-solid fa-arrow-down text-xs"></i></button>
+              <button id="s1-del-box-btn" class="text-rose-400 hover:text-rose-300 p-1 font-bold ml-1" title="削除 (Delete)">
+                <i class="fa-solid fa-trash-can"></i>
+              </button>
+            </div>
           </div>
           <div class="space-y-2">
             <div>
@@ -266,13 +283,17 @@
           </div>
         </div>
 
-        <div class="px-3 py-1 bg-slate-850 border-b border-slate-700 flex items-center justify-between text-[11px] text-slate-400">
+        <div class="px-3 py-1.5 bg-slate-850 border-b border-slate-700 flex items-center justify-between text-[11px] text-slate-400">
           <label class="flex items-center space-x-1.5 cursor-pointer hover:text-slate-200">
             <input type="checkbox" id="s1-select-all-checkbox" class="rounded bg-slate-900 border-slate-600">
             <span>現ページの全選択</span>
           </label>
-          <span id="s1-selected-summary-text">0枠 選択</span>
+          <div class="flex items-center space-x-2">
+            <span class="text-[10px] text-slate-500">⠿ドラッグで順序変更</span>
+            <span id="s1-selected-summary-text" class="text-indigo-300 font-mono">0枠 選択</span>
+          </div>
         </div>
+        <!-- 並び替え可能な枠リスト -->
         <div id="s1-boxes-list" class="flex-1 overflow-y-auto p-2 space-y-1.5"></div>
       </div>
     </div>
@@ -344,7 +365,7 @@
       </div>
     </header>
 
-    <!-- 模範解答 ＆ ルーブリック 常時表示パネル -->
+    <!-- ★ 模範解答 ＆ ルーブリック 常時表示パネル ★ -->
     <div class="h-28 bg-slate-800/95 border-b border-indigo-900/60 flex items-center px-4 py-2 space-x-4 z-10 shrink-0 shadow-md">
       <div class="flex flex-col h-full shrink-0">
         <span class="text-[10px] font-bold text-indigo-300 mb-1 flex items-center">
@@ -464,7 +485,6 @@
       <div class="w-full flex justify-between items-center mb-2 px-2">
         <div class="flex items-center space-x-3">
           <span id="modal-title" class="font-bold text-sm text-indigo-300">出席番号 1番</span>
-          <!-- モーダル内ページ切り替えタブ -->
           <div id="modal-page-tabs" class="flex items-center bg-slate-800 p-0.5 rounded-lg border border-slate-700 space-x-1 text-xs"></div>
         </div>
         <div class="flex items-center space-x-3 text-xs text-slate-400">
@@ -517,9 +537,9 @@
       },
       listeningKeyType: null,
       s1: {
-        pagesPerStudent: 1,      // 1人あたりのページ数（デフォルト1）
-        currentPage: 1,          // 現在Step1で表示中のページ番号 (1〜N)
-        pages: [],               // [{ pageNum, dataUrl, width, height }]
+        pagesPerStudent: 1,
+        currentPage: 1,
+        pages: [],               // [{ pageNum, canvas, dataUrl, width, height }]
         scale: 1,
         panX: 0,
         panY: 0,
@@ -529,12 +549,13 @@
         currentCategory: 'question',
         isSpaceDown: false,
         enableAspect: true,
-        boxes: [],               // [{ id, name, category, page, x, y, w, h, points, rubric, aspect }]
+        boxes: [],               // 登録枠配列（順序を保持）
         selectedIds: [],
         interactionMode: null,
         dragStartPt: { x: 0, y: 0 },
         boxOrigStates: new Map(),
-        tempBox: null
+        tempBox: null,
+        draggedBoxId: null       // 並び替えD&D用
       },
       s2: {
         pagesPerStudent: 1,
@@ -544,7 +565,7 @@
         activeStudentIndex: 0,
         isDoubleMode: false,
         currentStream: 1,
-        students: [],            // [{ studentNum, name, fullPageImages: [urlP1, urlP2...], fullPageImgElements: [], scores1, scores2 }]
+        students: [],
         filter: 'all',
         tileOffsets: {},
         modalViewPage: 1
@@ -695,7 +716,12 @@
             s1: {
               pagesPerStudent: appState.s1.pagesPerStudent,
               currentPage: appState.s1.currentPage,
-              pages: appState.s1.pages,
+              pages: appState.s1.pages.map(p => ({
+                pageNum: p.pageNum,
+                dataUrl: p.dataUrl,
+                width: p.width,
+                height: p.height
+              })),
               boxes: appState.s1.boxes,
               enableAspect: appState.s1.enableAspect
             },
@@ -748,11 +774,24 @@
     function restoreSession(data) {
       if (data.s1) {
         appState.s1.pagesPerStudent = data.s1.pagesPerStudent || 1;
-        appState.s1.pages = data.s1.pages || [];
         appState.s1.boxes = data.s1.boxes || [];
         appState.s1.enableAspect = data.s1.enableAspect !== undefined ? data.s1.enableAspect : true;
 
-        if (appState.s1.pages.length > 0) {
+        if (data.s1.pages && data.s1.pages.length > 0) {
+          appState.s1.pages = data.s1.pages.map(p => {
+            const canvas = document.createElement('canvas');
+            canvas.width = p.width;
+            canvas.height = p.height;
+            const ctx = canvas.getContext('2d');
+            const img = new Image();
+            img.onload = () => ctx.drawImage(img, 0, 0);
+            img.src = p.dataUrl;
+            return {
+              ...p,
+              canvas: canvas
+            };
+          });
+
           s1EmptyState.classList.add('hidden');
           renderS1PageTabs();
           switchS1Page(data.s1.currentPage || 1);
@@ -824,25 +863,23 @@
       switchTab(2);
     });
 
+    // ★ 模範解答画像の確実な同期切り出し ★
     function syncStep1ToStep2() {
       appState.s2.pagesPerStudent = appState.s1.pagesPerStudent;
 
+      const cropCanvas = document.createElement('canvas');
+      const cropCtx = cropCanvas.getContext('2d');
+
       const items = appState.s1.boxes.map(box => {
-        const pageInfo = appState.s1.pages.find(p => p.pageNum === box.page) || appState.s1.pages[0];
+        const pageInfo = appState.s1.pages.find(p => p.pageNum === (box.page || 1)) || appState.s1.pages[0];
         let modelImg = null;
 
-        if (pageInfo) {
-          const cropCanvas = document.createElement('canvas');
-          const cropCtx = cropCanvas.getContext('2d');
+        if (pageInfo && pageInfo.canvas) {
           cropCanvas.width = box.w;
           cropCanvas.height = box.h;
-          
-          const imgEl = new Image();
-          imgEl.src = pageInfo.dataUrl;
-          if (imgEl.complete) {
-            cropCtx.drawImage(imgEl, box.x, box.y, box.w, box.h, 0, 0, box.w, box.h);
-            modelImg = cropCanvas.toDataURL('image/jpeg', 0.88);
-          }
+          cropCtx.clearRect(0, 0, box.w, box.h);
+          cropCtx.drawImage(pageInfo.canvas, box.x, box.y, box.w, box.h, 0, 0, box.w, box.h);
+          modelImg = cropCanvas.toDataURL('image/jpeg', 0.88);
         }
 
         const pw = pageInfo ? pageInfo.width : 2000;
@@ -866,14 +903,20 @@
         };
       });
 
+      // ユーザーが設定した順序のまま反映
       appState.s2.questions = items.filter(b => b.category === 'question');
       appState.s2.metaBoxes = items.filter(b => b.category !== 'question');
 
-      if (appState.s2.questions.length > 0) initS2QuestionSelect();
+      if (appState.s2.questions.length > 0) {
+        if (appState.s2.currentQIndex >= appState.s2.questions.length) {
+          appState.s2.currentQIndex = 0;
+        }
+        initS2QuestionSelect();
+      }
       triggerAutoSave();
     }
 
-    // ================= ドラッグ＆ドロップ =================
+    // ================= ドラッグ＆ドロップ (ファイル読み込み) =================
     viewStep1.addEventListener('dragover', (e) => { e.preventDefault(); viewStep1.classList.add('drag-over-overlay'); });
     viewStep1.addEventListener('dragleave', (e) => {
       if (e.relatedTarget === null || !viewStep1.contains(e.relatedTarget)) viewStep1.classList.remove('drag-over-overlay');
@@ -915,7 +958,7 @@
       }
     });
 
-    // ================= STEP 1: 枠設定エディタ（複数ページ対応） =================
+    // ================= STEP 1: 枠設定エディタ =================
     function s1ApplyTransform() {
       s1Wrapper.style.transform = `matrix(${appState.s1.scale}, 0, 0, ${appState.s1.scale}, ${appState.s1.panX}, ${appState.s1.panY})`;
       s1ZoomText.textContent = `${Math.round(appState.s1.scale * 100)}%`;
@@ -978,9 +1021,6 @@
       appState.s1.boxes = [];
       appState.s1.selectedIds = [];
 
-      const vCanvas = document.createElement('canvas');
-      const vCtx = vCanvas.getContext('2d');
-
       for (let p = 1; p <= numPages; p++) {
         loadingSubtitle.textContent = `模範解答 ページ ${p} / ${numPages} を展開中...`;
         const page = await pdf.getPage(p);
@@ -988,15 +1028,18 @@
         const targetScale = Math.min(2200 / baseViewport.width, 2.5);
         const viewport = page.getViewport({ scale: targetScale });
 
-        vCanvas.width = Math.round(viewport.width);
-        vCanvas.height = Math.round(viewport.height);
-        await page.render({ canvasContext: vCtx, viewport: viewport }).promise;
+        const pageCanvas = document.createElement('canvas');
+        pageCanvas.width = Math.round(viewport.width);
+        pageCanvas.height = Math.round(viewport.height);
+        const pageCtx = pageCanvas.getContext('2d');
+        await page.render({ canvasContext: pageCtx, viewport: viewport }).promise;
 
         appState.s1.pages.push({
           pageNum: p,
-          dataUrl: vCanvas.toDataURL('image/jpeg', 0.9),
-          width: vCanvas.width,
-          height: vCanvas.height
+          canvas: pageCanvas, // ★ Canvas オブジェクトを直接保持
+          dataUrl: pageCanvas.toDataURL('image/jpeg', 0.9),
+          width: pageCanvas.width,
+          height: pageCanvas.height
         });
       }
 
@@ -1012,9 +1055,16 @@
         reader.onload = (ev) => {
           const img = new Image();
           img.onload = () => {
+            const pageCanvas = document.createElement('canvas');
+            pageCanvas.width = img.width;
+            pageCanvas.height = img.height;
+            const pageCtx = pageCanvas.getContext('2d');
+            pageCtx.drawImage(img, 0, 0);
+
             appState.s1.pagesPerStudent = 1;
             appState.s1.pages = [{
               pageNum: 1,
+              canvas: pageCanvas,
               dataUrl: ev.target.result,
               width: img.width,
               height: img.height
@@ -1063,19 +1113,21 @@
       s1SvgOverlay.setAttribute('width', pageInfo.width);
       s1SvgOverlay.setAttribute('height', pageInfo.height);
 
-      const img = new Image();
-      img.onload = () => {
-        s1Ctx.clearRect(0, 0, s1Canvas.width, s1Canvas.height);
-        s1Ctx.drawImage(img, 0, 0);
-        s1FitView();
-        s1RenderBoxes();
-        s1UpdateSidebar();
-        updateCategoryButtonsForCurrentPage();
-      };
-      img.src = pageInfo.dataUrl;
+      s1Ctx.clearRect(0, 0, s1Canvas.width, s1Canvas.height);
+      if (pageInfo.canvas) {
+        s1Ctx.drawImage(pageInfo.canvas, 0, 0);
+      } else {
+        const img = new Image();
+        img.onload = () => s1Ctx.drawImage(img, 0, 0);
+        img.src = pageInfo.dataUrl;
+      }
+
+      s1FitView();
+      s1RenderBoxes();
+      s1UpdateSidebar();
+      updateCategoryButtonsForCurrentPage();
     }
 
-    // 表面（Page 1）以外では合計点・氏名等の特別枠を制限
     function updateCategoryButtonsForCurrentPage() {
       const isPage1 = appState.s1.currentPage === 1;
       const restrictedCats = ['student_num', 'student_name', 'total_score', 'aspect_k_score', 'aspect_t_score'];
@@ -1086,9 +1138,7 @@
           if (!isPage1) {
             btn.classList.add('opacity-30', 'cursor-not-allowed');
             btn.disabled = true;
-            if (appState.s1.currentCategory === cat) {
-              setDrawCategory('question');
-            }
+            if (appState.s1.currentCategory === cat) setDrawCategory('question');
           } else {
             btn.classList.remove('opacity-30', 'cursor-not-allowed');
             btn.disabled = false;
@@ -1429,6 +1479,7 @@
       }
     }
 
+    // ================= 枠一覧描画 ＆ ドラッグ＆ドロップ並び替え =================
     function s1UpdateSidebar() {
       const listEl = document.getElementById('s1-boxes-list');
       const boxCount = document.getElementById('s1-box-count');
@@ -1462,7 +1513,8 @@
         const sel = appState.s1.boxes.find(b => b.id === activeId);
 
         if (sel) {
-          const countInfo = appState.s1.selectedIds.length > 1 ? ` (他 ${appState.s1.selectedIds.length - 1}件)` : '';
+          const currentOrder = appState.s1.boxes.indexOf(sel) + 1;
+          const countInfo = appState.s1.selectedIds.length > 1 ? ` (他 ${appState.s1.selectedIds.length - 1}件)` : ` [#${currentOrder}]`;
           document.getElementById('s1-sel-title').textContent = `${sel.name} 編集${countInfo}`;
           document.getElementById('s1-prop-id').value = sel.name;
           document.getElementById('s1-prop-points').value = sel.points;
@@ -1504,18 +1556,80 @@
 
       s1SelectAllCheckbox.checked = curPageBoxes.length > 0 && appState.s1.selectedIds.length === curPageBoxes.length;
 
-      appState.s1.boxes.forEach(box => {
+      // ★ 全枠を順序通り描画（D&D並び替え可能） ★
+      appState.s1.boxes.forEach((box, index) => {
         const item = document.createElement('div');
         const isSel = appState.s1.selectedIds.includes(box.id);
         const meta = getCategoryMeta(box.category);
         const isCurrentPage = (box.page || 1) === appState.s1.currentPage;
 
-        item.className = `p-2 rounded border flex items-center justify-between cursor-pointer transition ${
+        item.className = `box-drag-item p-1.5 rounded border flex items-center justify-between cursor-pointer transition select-none ${
           isSel ? 'bg-indigo-900/40 border-indigo-500' : 'bg-slate-700/50 border-slate-600 hover:bg-slate-700'
-        } ${!isCurrentPage ? 'opacity-60' : ''}`;
+        } ${!isCurrentPage ? 'opacity-50' : ''}`;
+        item.setAttribute('draggable', 'true');
+        item.dataset.id = box.id;
+        item.dataset.index = index;
+
+        // ドラッグ開始
+        item.addEventListener('dragstart', (e) => {
+          appState.s1.draggedBoxId = box.id;
+          item.classList.add('dragging');
+          e.dataTransfer.setData('text/plain', box.id);
+          e.dataTransfer.effectAllowed = 'move';
+        });
+
+        item.addEventListener('dragend', () => {
+          item.classList.remove('dragging');
+          document.querySelectorAll('.box-drag-item').forEach(el => {
+            el.classList.remove('drag-over-top', 'drag-over-bottom');
+          });
+        });
+
+        item.addEventListener('dragover', (e) => {
+          e.preventDefault();
+          e.dataTransfer.dropEffect = 'move';
+          const rect = item.getBoundingClientRect();
+          const midY = rect.top + rect.height / 2;
+          if (e.clientY < midY) {
+            item.classList.add('drag-over-top');
+            item.classList.remove('drag-over-bottom');
+          } else {
+            item.classList.add('drag-over-bottom');
+            item.classList.remove('drag-over-top');
+          }
+        });
+
+        item.addEventListener('dragleave', () => {
+          item.classList.remove('drag-over-top', 'drag-over-bottom');
+        });
+
+        item.addEventListener('drop', (e) => {
+          e.preventDefault();
+          item.classList.remove('drag-over-top', 'drag-over-bottom');
+          const sourceId = appState.s1.draggedBoxId;
+          const targetId = box.id;
+          if (!sourceId || sourceId === targetId) return;
+
+          const fromIdx = appState.s1.boxes.findIndex(b => b.id === sourceId);
+          let toIdx = appState.s1.boxes.findIndex(b => b.id === targetId);
+
+          const rect = item.getBoundingClientRect();
+          const midY = rect.top + rect.height / 2;
+          const insertAfter = e.clientY >= midY;
+
+          const [movedItem] = appState.s1.boxes.splice(fromIdx, 1);
+          toIdx = appState.s1.boxes.findIndex(b => b.id === targetId);
+          if (insertAfter) toIdx++;
+          appState.s1.boxes.splice(toIdx, 0, movedItem);
+
+          appState.s1.selectedIds = [movedItem.id];
+          s1RenderBoxes();
+          s1UpdateSidebar();
+          triggerAutoSave();
+        });
 
         item.onclick = (e) => {
-          if (e.target.tagName === 'INPUT') return;
+          if (e.target.tagName === 'INPUT' || e.target.closest('button')) return;
           if (box.page !== appState.s1.currentPage) {
             switchS1Page(box.page);
           }
@@ -1534,11 +1648,11 @@
         let badgeHtml = '';
         if (box.category === 'question') {
           badgeHtml = appState.s1.enableAspect 
-            ? (box.aspect === 'thinking' ? '<span class="text-[9px] bg-purple-900/60 text-purple-300 px-1.5 py-0.5 rounded font-mono">思考</span>'
-                                         : '<span class="text-[9px] bg-sky-900/60 text-sky-300 px-1.5 py-0.5 rounded font-mono">知識</span>')
+            ? (box.aspect === 'thinking' ? '<span class="text-[9px] bg-purple-900/60 text-purple-300 px-1 py-0.2 rounded font-mono">思考</span>'
+                                         : '<span class="text-[9px] bg-sky-900/60 text-sky-300 px-1 py-0.2 rounded font-mono">知識</span>')
             : '';
         } else {
-          badgeHtml = `<span class="text-[9px] px-1.5 py-0.5 rounded font-bold" style="background-color: ${meta.color}25; color: ${meta.color}">${meta.short}</span>`;
+          badgeHtml = `<span class="text-[9px] px-1 py-0.2 rounded font-bold" style="background-color: ${meta.color}25; color: ${meta.color}">${meta.short}</span>`;
         }
 
         const pointDisplay = box.category === 'question' 
@@ -1546,17 +1660,48 @@
           : '<span class="text-slate-400 text-[10px]">設定枠</span>';
 
         item.innerHTML = `
-          <div class="flex items-center space-x-1.5">
+          <div class="flex items-center space-x-1.5 overflow-hidden">
+            <span class="cursor-grab text-slate-500 hover:text-slate-300 px-0.5" title="ドラッグして並び替え"><i class="fa-solid fa-grip-vertical"></i></span>
+            <span class="text-[10px] font-mono text-slate-400 font-bold w-4 text-right">${index + 1}</span>
             <input type="checkbox" ${isSel ? 'checked' : ''} class="rounded bg-slate-800 border-slate-600 pointer-events-none">
             ${pageBadge}
-            <span class="font-bold text-white">${box.name}</span>
+            <span class="font-bold text-white truncate max-w-[85px]">${box.name}</span>
             <div class="flex space-x-1">${badgeHtml}</div>
           </div>
-          ${pointDisplay}
+          <div class="flex items-center space-x-2 shrink-0">
+            ${pointDisplay}
+          </div>
         `;
         listEl.appendChild(item);
       });
     }
+
+    // 単一枠の上下移動ボタン
+    document.getElementById('s1-btn-move-up').addEventListener('click', () => {
+      if (appState.s1.selectedIds.length !== 1) return;
+      const id = appState.s1.selectedIds[0];
+      const idx = appState.s1.boxes.findIndex(b => b.id === id);
+      if (idx > 0) {
+        const item = appState.s1.boxes.splice(idx, 1)[0];
+        appState.s1.boxes.splice(idx - 1, 0, item);
+        s1RenderBoxes();
+        s1UpdateSidebar();
+        triggerAutoSave();
+      }
+    });
+
+    document.getElementById('s1-btn-move-down').addEventListener('click', () => {
+      if (appState.s1.selectedIds.length !== 1) return;
+      const id = appState.s1.selectedIds[0];
+      const idx = appState.s1.boxes.findIndex(b => b.id === id);
+      if (idx >= 0 && idx < appState.s1.boxes.length - 1) {
+        const item = appState.s1.boxes.splice(idx, 1)[0];
+        appState.s1.boxes.splice(idx + 1, 0, item);
+        s1RenderBoxes();
+        s1UpdateSidebar();
+        triggerAutoSave();
+      }
+    });
 
     s1SelectAllCheckbox.addEventListener('change', (e) => {
       const curPageBoxes = appState.s1.boxes.filter(b => (b.page || 1) === appState.s1.currentPage);
@@ -1805,8 +1950,9 @@
       s2ModelPointBadge.textContent = `配点: ${q.points} 点`;
       s2ModelRubricText.textContent = q.rubric ? q.rubric : '（採点基準メモなし）';
 
+      // ★ 模範解答画像の確実な表示 ★
       if (q.modelAnswerImage && q.modelAnswerImage.length > 50) {
-        s2ModelAnsContainer.innerHTML = `<img src="${q.modelAnswerImage}" class="max-h-full max-w-full object-contain pointer-events-none" alt="模範解答">`;
+        s2ModelAnsContainer.innerHTML = `<img src="${q.modelAnswerImage}" class="max-h-full max-w-full object-contain pointer-events-none shadow" alt="模範解答">`;
       } else {
         s2ModelAnsContainer.innerHTML = '<span class="text-slate-400 text-xs">模範画像なし</span>';
       }
@@ -2147,7 +2293,7 @@
       renderS2Tiles();
     });
 
-    // 拡大モーダル（複数ページ対応）
+    // 拡大モーダル
     let modalPan = { x: 0, y: 0, isDragging: false, startX: 0, startY: 0 };
     function openModal() {
       const curQ = appState.s2.questions[appState.s2.currentQIndex];
@@ -2224,7 +2370,7 @@
     });
     window.addEventListener('mouseup', () => { modalPan.isDragging = false; });
 
-    // 出席番号確認モーダル（表面 P.1 から抽出）
+    // 出席番号確認モーダル
     document.getElementById('s2-open-num-modal-btn').addEventListener('click', () => {
       if (appState.s2.students.length === 0) { alert('先に答案PDFを読み込んでください。'); return; }
       renderStudentNumModal();
@@ -2254,7 +2400,6 @@
         const row = document.createElement('div');
         row.className = 'grid grid-cols-12 gap-2 items-center bg-slate-800/80 p-2 rounded border border-slate-700 text-xs';
 
-        // P.1 表面画像エレメント
         const p1Img = std.fullPageImgElements && std.fullPageImgElements[0];
 
         let numImgSrc = '';
@@ -2316,7 +2461,7 @@
       });
     }
 
-    // 答案PDF展開（裏表連続スキャン・自動グループ化）
+    // 答案PDF展開
     async function processStudentsPdf(file) {
       if (appState.s2.questions.length === 0) {
         alert('設問枠が設定されていません。Step 1 で枠を設定してください。');
@@ -2336,7 +2481,6 @@
 
         const totalPdfPages = pdf.numPages;
 
-        // ★ 落丁・割り切れチェック
         if (totalPdfPages % pagesPerStudent !== 0) {
           const msg = `⚠️ 答案PDFの総ページ数（${totalPdfPages}ページ）が、解答用紙の構成（1人あたり ${pagesPerStudent} ページ）で割り切れません。\n\n用紙詰まりや欠落がないかPDFを確認してください。`;
           alert(msg);
@@ -2478,7 +2622,7 @@
       XLSX.writeFile(wb, `marking_results_${new Date().toISOString().slice(0, 10)}.xlsx`);
     });
 
-    // 生徒返却用PDF一括生成（複数ページ連続結合対応）
+    // 生徒返却用PDF一括生成
     document.getElementById('s2-export-return-pdf-btn').addEventListener('click', async () => {
       if (appState.s2.students.length === 0) { alert('出力対象の答案データがありません。'); return; }
 
@@ -2526,7 +2670,6 @@
             }
           });
 
-          // 1人あたり pagesPerStudent ページを連続して合成
           for (let p = 1; p <= pagesPerStudent; p++) {
             const pageIndex = p - 1;
             const fullImg = std.fullPageImgElements && std.fullPageImgElements[pageIndex];
@@ -2541,7 +2684,6 @@
             drawCtx.fillStyle = '#dc2626';
             drawCtx.lineWidth = Math.max(3, Math.round(drawCanvas.width * 0.0035));
 
-            // 当該ページに属する設問の〇×印字
             appState.s2.questions.filter(q => (q.page || 1) === p).forEach(q => {
               const score = std.scores1[q.id];
               if (score !== null && score !== undefined) {
@@ -2581,7 +2723,6 @@
               }
             });
 
-            // ★ 合計点・知計・思計は表面（Page 1）のみに印字
             if (p === 1) {
               appState.s2.metaBoxes.forEach(mb => {
                 const norm = mb.normalized;
@@ -2647,7 +2788,7 @@
       setTimeout(() => {
         try {
           const exportData = {
-            version: "3.0",
+            version: "3.1",
             appName: "でじたる採点くん",
             createdAt: new Date().toISOString(),
             pagesPerStudent: appState.s1.pagesPerStudent,
@@ -2696,7 +2837,6 @@
       reader.readAsText(file);
     });
 
-    // 起動時自動復旧チェック
     window.addEventListener('DOMContentLoaded', () => {
       checkAndRestoreAutoSave();
     });
