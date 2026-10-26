@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>でじたる採点くん Ver 3.2</title>
+  <title>でじたる採点くん Ver 3.3</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script>
@@ -24,11 +24,14 @@
     #viewport-container { cursor: crosshair; }
     #viewport-container.panning { cursor: grab; }
     #viewport-container.is-panning { cursor: grabbing !important; }
-    .active-card {
-      outline: 4px solid #6366f1 !important;
+    
+    /* 選択中の単一アクティブカード */
+    .student-card.active-card {
+      outline: 3px solid #6366f1 !important;
       outline-offset: 2px;
       transform: scale(1.02);
       z-index: 10;
+      box-shadow: 0 10px 25px -5px rgba(99, 102, 241, 0.4);
     }
     .mismatch-card {
       border-color: #ef4444 !important;
@@ -62,7 +65,7 @@
         <i class="fa-solid fa-pen-ruler text-xs"></i>
       </div>
       <span class="font-bold text-sm tracking-wide text-white">でじたる採点くん</span>
-      <span class="text-[10px] bg-slate-800 text-slate-400 px-2 py-0.5 rounded font-mono">Ver 3.2 統合版</span>
+      <span class="text-[10px] bg-slate-800 text-slate-400 px-2 py-0.5 rounded font-mono">Ver 3.3 安定統合版</span>
       <span id="autosave-indicator" class="text-[10px] text-emerald-400 flex items-center space-x-1 ml-2">
         <i class="fa-solid fa-cloud-arrow-up"></i><span>自動保存済</span>
       </span>
@@ -182,7 +185,8 @@
             <i class="fa-solid fa-file-lines text-5xl text-indigo-400 mb-4 block"></i>
             <h2 class="text-lg font-bold text-white mb-2">模範解答用紙を読み込んでください</h2>
             <p class="text-xs text-slate-400 leading-relaxed mb-5">
-              スキャンした模範解答のPDF（2ページ裏表も自動認識）を選択するか、<span class="text-indigo-300 font-bold">画面上に直接ドロップ</span>してください。
+              スキャンした模範解答のPDF（2ページ裏表も自動認識）を選択するか、<span class="text-indigo-300 font-bold">画面上に直接ドロップ</span>してください。<br>
+              <span class="text-amber-300">※読み込み後に90度回転補正が可能です。</span>
             </p>
             <button onclick="document.getElementById('s1-file-input').click()" class="w-full py-2.5 bg-indigo-600 hover:bg-indigo-500 rounded-lg text-white font-semibold text-sm transition shadow">
               模範解答ファイルを選択
@@ -362,7 +366,7 @@
       </div>
     </header>
 
-    <!-- ★ 模範解答 ＆ ルーブリック 常時表示パネル ★ -->
+    <!-- 模範解答 ＆ ルーブリック 常時表示パネル -->
     <div class="h-28 bg-slate-800/95 border-b border-indigo-900/60 flex items-center px-4 py-2 space-x-4 z-10 shrink-0 shadow-md">
       <div class="flex flex-col h-full shrink-0">
         <span class="text-[10px] font-bold text-indigo-300 mb-1 flex items-center">
@@ -382,10 +386,9 @@
         <p id="s2-model-rubric-text" class="text-xs text-slate-300 leading-snug whitespace-pre-wrap">Step 1 で模範解答を設定すると採点基準がここに表示されます。</p>
       </div>
 
-      <!-- ★ 拡張版キー操作ガイド ＆ クリックで全キーカスタム ★ -->
+      <!-- キー操作ガイド ＆ クリックで全キーカスタム -->
       <div class="flex flex-col h-full justify-between bg-slate-900/80 rounded-lg p-2 border border-slate-700 text-[11px] shrink-0 font-mono">
         <div class="flex items-center space-x-3">
-          <!-- 採点キー -->
           <div class="flex items-center space-x-1.5">
             <button id="btn-custom-key-correct" class="px-2 py-0.5 bg-emerald-700/80 hover:bg-emerald-600 border border-emerald-500 rounded font-bold text-emerald-100 transition shadow" title="クリックして満点キーを変更">
               <span id="key-label-correct">C</span>
@@ -399,15 +402,14 @@
 
           <span class="text-slate-600">|</span>
 
-          <!-- 設問切替キー（カスタム可能） -->
           <div class="flex items-center space-x-1.5">
             <span class="text-slate-400 text-[10px]">設問切替:</span>
             <button id="btn-custom-key-prev-q" class="px-2 py-0.5 bg-slate-800 hover:bg-slate-700 border border-slate-600 rounded font-bold text-indigo-300 transition shadow text-[10px]" title="クリックして前問キーを変更">
-              <span id="key-label-prev-q">PAGEUP</span>
+              <span id="key-label-prev-q">PGUP</span>
             </button>
             <span class="text-slate-500">/</span>
             <button id="btn-custom-key-next-q" class="px-2 py-0.5 bg-slate-800 hover:bg-slate-700 border border-slate-600 rounded font-bold text-indigo-300 transition shadow text-[10px]" title="クリックして次問キーを変更">
-              <span id="key-label-next-q">PAGEDOWN</span>
+              <span id="key-label-next-q">PGDN</span>
             </button>
           </div>
         </div>
@@ -454,8 +456,8 @@
           <i class="fa-solid fa-graduation-cap text-5xl text-indigo-400 mb-4 block"></i>
           <h2 class="text-lg font-bold text-white mb-2">生徒答案PDFを読み込んでください</h2>
           <div class="text-left text-xs text-slate-300 space-y-2 mb-6 bg-slate-900/60 p-3.5 rounded-lg border border-slate-700 leading-relaxed">
-            <div><b>① 複数ページ対応:</b><br>模範解答で設定したページ数（例: 表裏2ページ）に基づき、生徒答案PDFを自動的にグループ化します。</div>
-            <div><b>② ドロップ対応:</b><br>ボタンまたは画面全体へ<span class="text-indigo-300 font-bold">PDFをドラッグ＆ドロップ</span>して開始してください。</div>
+            <div><b>① 用紙向きの補正:</b><br>アップロード後に自動で向き確認画面が開きます（90度ずつ回転可能）。</div>
+            <div><b>② 複数ページ自動グループ化:</b><br>Step 1 で設定したページ数（例: 表裏2ページ）に基づき自動分割されます。</div>
           </div>
           <button onclick="document.getElementById('s2-students-pdf-input').click()" class="w-full py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs rounded-lg transition shadow">
             答案PDFファイルを選択する
@@ -493,26 +495,75 @@
     </div>
   </div>
 
-  <!-- ★ 拡大モーダル（安定版・ドラッグ移動 ＆ ページめくり） ★ -->
-  <div id="zoom-modal" class="fixed inset-0 bg-slate-950/85 backdrop-blur-sm z-50 flex flex-col items-center justify-center p-6 hidden">
+  <!-- ★ 90度回転補正・確認モーダル ★ -->
+  <div id="rotation-modal" class="fixed inset-0 bg-slate-950/90 backdrop-blur-md z-50 flex flex-col items-center justify-center p-4 hidden">
+    <div class="bg-slate-900 border border-slate-700 rounded-2xl shadow-2xl w-full max-w-3xl flex flex-col overflow-hidden">
+      <div class="px-4 py-3 bg-slate-800 border-b border-slate-700 flex justify-between items-center shrink-0">
+        <div class="flex items-center space-x-2">
+          <i class="fa-solid fa-arrows-rotate text-indigo-400 text-base"></i>
+          <h3 id="rotation-modal-title" class="font-bold text-sm text-white">用紙の向き（回転補正）</h3>
+        </div>
+        <button onclick="cancelRotationModal()" class="text-slate-400 hover:text-white p-1"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+      <div class="p-4 flex flex-col items-center">
+        <p class="text-xs text-slate-300 mb-3 text-center">
+          正しい向き（文字が読める状態）になるよう回転してください。<span class="text-amber-400">全ページに一括反映されます。</span>
+        </p>
+        <div class="h-80 w-full bg-slate-950 rounded-xl border border-slate-800 flex items-center justify-center overflow-hidden p-2 relative shadow-inner">
+          <canvas id="rotation-preview-canvas" class="max-h-full max-w-full object-contain shadow-lg rounded transition-transform duration-200"></canvas>
+        </div>
+        <div class="flex items-center space-x-4 mt-4">
+          <button id="btn-do-rotate-90" class="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-indigo-300 hover:text-white rounded-lg border border-slate-600 font-bold text-xs flex items-center space-x-2 transition shadow">
+            <i class="fa-solid fa-rotate-right text-sm"></i>
+            <span>時計回りに 90° 回転</span>
+          </button>
+          <span id="rotation-angle-badge" class="font-mono text-xs font-bold px-2.5 py-1 bg-slate-800 text-amber-300 rounded border border-slate-700">0°</span>
+        </div>
+      </div>
+      <div class="p-3 bg-slate-800 border-t border-slate-700 flex justify-end space-x-2 shrink-0">
+        <button onclick="cancelRotationModal()" class="px-3 py-1.5 rounded text-xs text-slate-400 hover:text-white transition">キャンセル</button>
+        <button id="btn-confirm-rotation" class="px-5 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs rounded-lg transition shadow">この向きで確定する</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ★ 拡大モーダル（Canvas直接描画・設問クローズアップ安定版） ★ -->
+  <div id="zoom-modal" class="fixed inset-0 bg-slate-950/85 backdrop-blur-sm z-50 flex flex-col items-center justify-center p-4 hidden">
     <div class="relative bg-slate-900 border border-slate-700 rounded-xl p-3 shadow-2xl w-full max-w-5xl max-h-[92vh] flex flex-col items-center">
       <div class="w-full flex justify-between items-center mb-2 px-2">
         <div class="flex items-center space-x-3">
           <span id="modal-title" class="font-bold text-sm text-indigo-300">出席番号 1番</span>
-          <!-- モーダル内ページ切り替えタブ -->
           <div id="modal-page-tabs" class="flex items-center bg-slate-800 p-0.5 rounded-lg border border-slate-700 space-x-1 text-xs"></div>
         </div>
         <div class="flex items-center space-x-3 text-xs text-slate-400">
-          <span>💡 マウスドラッグで用紙を移動できます</span>
+          <button id="btn-modal-reset-view" class="px-2 py-0.5 bg-slate-800 hover:bg-slate-700 rounded border border-slate-600 text-[11px] text-slate-300 font-semibold transition">
+            <i class="fa-solid fa-arrows-to-dot mr-1"></i>設問にフォーカス
+          </button>
+          <button id="btn-modal-fit-view" class="px-2 py-0.5 bg-slate-800 hover:bg-slate-700 rounded border border-slate-600 text-[11px] text-slate-300 font-semibold transition">
+            <i class="fa-solid fa-expand mr-1"></i>用紙全体
+          </button>
           <button onclick="closeModal()" class="text-slate-400 hover:text-white p-1 text-lg"><i class="fa-solid fa-xmark"></i></button>
         </div>
       </div>
       <div id="modal-viewport" class="flex-1 w-full h-[72vh] overflow-hidden bg-slate-950 rounded border border-slate-700 relative peeking-window cursor-grab">
-        <div id="modal-canvas-wrapper" class="absolute origin-top-left" style="transform: matrix(1, 0, 0, 1, 0, 0);">
-          <img id="modal-full-img" class="max-w-none pointer-events-none select-none block" src="" alt="答案用紙">
-        </div>
+        <canvas id="modal-zoom-canvas" class="block absolute top-0 left-0"></canvas>
       </div>
-      <p class="text-xs text-slate-400 mt-2 font-mono">Space または Esc で閉じます</p>
+      <div class="w-full flex justify-between items-center text-xs text-slate-400 mt-2 px-2 font-mono">
+        <span>💡 ドラッグで移動 / ホイールで拡大縮小</span>
+        <span>Space または Esc で閉じます</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ★ 生徒番号ホバー時の氏名ポップアップ（ツールチップ） ★ -->
+  <div id="student-name-tooltip" class="fixed hidden z-50 pointer-events-none transition-opacity duration-150 bg-slate-900 border-2 border-indigo-500 rounded-xl shadow-2xl p-2 flex flex-col items-center">
+    <div class="text-[10px] font-bold text-indigo-300 mb-1 flex items-center justify-between w-full px-1">
+      <span id="tooltip-std-num">#1</span>
+      <span class="text-slate-400">氏名欄プレビュー</span>
+    </div>
+    <div class="h-16 w-48 bg-white rounded border border-slate-600 flex items-center justify-center overflow-hidden p-1 shadow-inner">
+      <img id="tooltip-name-img" class="max-h-full max-w-full object-contain" src="" alt="氏名">
+      <span id="tooltip-name-empty" class="text-slate-400 text-xs hidden">氏名枠未設定</span>
     </div>
   </div>
 
@@ -546,14 +597,13 @@
     // --- グローバル状態管理 ---
     const appState = {
       currentStep: 1,
-      // ★ 設問切替キーも任意カスタマイズ対応
       customKeys: {
         correct: localStorage.getItem('d_saiten_key_correct') || 'c',
         wrong: localStorage.getItem('d_saiten_key_wrong') || 'x',
         prevQ: localStorage.getItem('d_saiten_key_prev_q') || 'pageup',
         nextQ: localStorage.getItem('d_saiten_key_next_q') || 'pagedown'
       },
-      listeningKeyType: null, // 'correct' | 'wrong' | 'prevQ' | 'nextQ'
+      listeningKeyType: null,
       s1: {
         pagesPerStudent: 1,
         currentPage: 1,
@@ -587,6 +637,12 @@
         filter: 'all',
         tileOffsets: {},
         modalViewPage: 1
+      },
+      // 回転補正モーダル管理
+      rotation: {
+        angle: 0,
+        tempCanvases: [],
+        callback: null
       }
     };
 
@@ -639,8 +695,23 @@
     const modalTitle = document.getElementById('modal-title');
     const modalPageTabs = document.getElementById('modal-page-tabs');
     const modalViewport = document.getElementById('modal-viewport');
-    const modalCanvasWrapper = document.getElementById('modal-canvas-wrapper');
-    const modalFullImg = document.getElementById('modal-full-img');
+    const modalZoomCanvas = document.getElementById('modal-zoom-canvas');
+    const modalZoomCtx = modalZoomCanvas.getContext('2d');
+    const btnModalResetView = document.getElementById('btn-modal-reset-view');
+    const btnModalFitView = document.getElementById('btn-modal-fit-view');
+
+    const rotationModal = document.getElementById('rotation-modal');
+    const rotationPreviewCanvas = document.getElementById('rotation-preview-canvas');
+    const rotationPreviewCtx = rotationPreviewCanvas.getContext('2d');
+    const btnDoRotate90 = document.getElementById('btn-do-rotate-90');
+    const btnConfirmRotation = document.getElementById('btn-confirm-rotation');
+    const rotationAngleBadge = document.getElementById('rotation-angle-badge');
+
+    const tooltipEl = document.getElementById('student-name-tooltip');
+    const tooltipStdNum = document.getElementById('tooltip-std-num');
+    const tooltipNameImg = document.getElementById('tooltip-name-img');
+    const tooltipNameEmpty = document.getElementById('tooltip-name-empty');
+
     const studentNumModal = document.getElementById('student-num-modal');
     const studentNumList = document.getElementById('student-num-list');
     const loadingOverlay = document.getElementById('loading-overlay');
@@ -690,34 +761,16 @@
       updateKeyLabels();
     }
 
-    btnCustomKeyCorrect.addEventListener('click', (e) => {
-      e.stopPropagation();
-      setKeyListening('correct', btnCustomKeyCorrect, keyLabelCorrect);
-    });
+    btnCustomKeyCorrect.addEventListener('click', (e) => { e.stopPropagation(); setKeyListening('correct', btnCustomKeyCorrect, keyLabelCorrect); });
+    btnCustomKeyWrong.addEventListener('click', (e) => { e.stopPropagation(); setKeyListening('wrong', btnCustomKeyWrong, keyLabelWrong); });
+    btnCustomKeyPrevQ.addEventListener('click', (e) => { e.stopPropagation(); setKeyListening('prevQ', btnCustomKeyPrevQ, keyLabelPrevQ); });
+    btnCustomKeyNextQ.addEventListener('click', (e) => { e.stopPropagation(); setKeyListening('nextQ', btnCustomKeyNextQ, keyLabelNextQ); });
 
-    btnCustomKeyWrong.addEventListener('click', (e) => {
-      e.stopPropagation();
-      setKeyListening('wrong', btnCustomKeyWrong, keyLabelWrong);
-    });
-
-    btnCustomKeyPrevQ.addEventListener('click', (e) => {
-      e.stopPropagation();
-      setKeyListening('prevQ', btnCustomKeyPrevQ, keyLabelPrevQ);
-    });
-
-    btnCustomKeyNextQ.addEventListener('click', (e) => {
-      e.stopPropagation();
-      setKeyListening('nextQ', btnCustomKeyNextQ, keyLabelNextQ);
-    });
-
-    // キー登録処理リスナー
     window.addEventListener('keydown', (e) => {
       if (appState.listeningKeyType) {
         e.preventDefault();
         e.stopPropagation();
         const key = e.key.toLowerCase();
-        
-        // 予約キーのガード
         if (/^[0-9]$/.test(key) || key === 'tab' || key === 'enter' || key === 'escape' || key === ' ') {
           alert('数字・Enter・Tab・Esc・Spaceキーは固定機能のため割り当てできません。別のキーを押してください。');
           clearKeyListening();
@@ -725,20 +778,10 @@
         }
 
         const type = appState.listeningKeyType;
-        if (type === 'correct') {
-          appState.customKeys.correct = key;
-          localStorage.setItem('d_saiten_key_correct', key);
-        } else if (type === 'wrong') {
-          appState.customKeys.wrong = key;
-          localStorage.setItem('d_saiten_key_wrong', key);
-        } else if (type === 'prevQ') {
-          appState.customKeys.prevQ = key;
-          localStorage.setItem('d_saiten_key_prev_q', key);
-        } else if (type === 'nextQ') {
-          appState.customKeys.nextQ = key;
-          localStorage.setItem('d_saiten_key_next_q', key);
-        }
-
+        if (type === 'correct') { appState.customKeys.correct = key; localStorage.setItem('d_saiten_key_correct', key); }
+        else if (type === 'wrong') { appState.customKeys.wrong = key; localStorage.setItem('d_saiten_key_wrong', key); }
+        else if (type === 'prevQ') { appState.customKeys.prevQ = key; localStorage.setItem('d_saiten_key_prev_q', key); }
+        else if (type === 'nextQ') { appState.customKeys.nextQ = key; localStorage.setItem('d_saiten_key_next_q', key); }
         clearKeyListening();
       }
     }, true);
@@ -757,10 +800,7 @@
             db.createObjectStore('autosave', { keyPath: 'key' });
           }
         };
-        req.onsuccess = (e) => {
-          dbInstance = e.target.result;
-          resolve(dbInstance);
-        };
+        req.onsuccess = (e) => { dbInstance = e.target.result; resolve(dbInstance); };
         req.onerror = () => reject(req.error);
       });
     }
@@ -853,10 +893,7 @@
             const img = new Image();
             img.onload = () => ctx.drawImage(img, 0, 0);
             img.src = p.dataUrl;
-            return {
-              ...p,
-              canvas: canvas
-            };
+            return { ...p, canvas: canvas };
           });
 
           s1EmptyState.classList.add('hidden');
@@ -878,10 +915,7 @@
               img.src = url;
               return img;
             });
-            return {
-              ...std,
-              fullPageImgElements: elements
-            };
+            return { ...std, fullPageImgElements: elements };
           });
           initS2QuestionSelect();
           switchTab(2);
@@ -930,7 +964,6 @@
       switchTab(2);
     });
 
-    // 模範解答画像の確実な同期切り出し
     function syncStep1ToStep2() {
       appState.s2.pagesPerStudent = appState.s1.pagesPerStudent;
 
@@ -982,6 +1015,74 @@
       triggerAutoSave();
     }
 
+    // ================= ★ 90度回転補正システム ★ =================
+    function openRotationModal(title, sourceCanvases, onConfirmCallback) {
+      appState.rotation.angle = 0;
+      appState.rotation.tempCanvases = sourceCanvases;
+      appState.rotation.callback = onConfirmCallback;
+
+      document.getElementById('rotation-modal-title').textContent = title;
+      rotationAngleBadge.textContent = '0°';
+      drawRotationPreview();
+      rotationModal.classList.remove('hidden');
+    }
+
+    function cancelRotationModal() {
+      rotationModal.classList.add('hidden');
+      appState.rotation.tempCanvases = [];
+      appState.rotation.callback = null;
+    }
+
+    function drawRotationPreview() {
+      const src = appState.rotation.tempCanvases[0];
+      if (!src) return;
+
+      const angle = appState.rotation.angle;
+      const is90or270 = angle === 90 || angle === 270;
+
+      rotationPreviewCanvas.width = is90or270 ? src.height : src.width;
+      rotationPreviewCanvas.height = is90or270 ? src.width : src.height;
+
+      rotationPreviewCtx.save();
+      rotationPreviewCtx.translate(rotationPreviewCanvas.width / 2, rotationPreviewCanvas.height / 2);
+      rotationPreviewCtx.rotate((angle * Math.PI) / 180);
+      rotationPreviewCtx.drawImage(src, -src.width / 2, -src.height / 2);
+      rotationPreviewCtx.restore();
+    }
+
+    btnDoRotate90.addEventListener('click', () => {
+      appState.rotation.angle = (appState.rotation.angle + 90) % 360;
+      rotationAngleBadge.textContent = `${appState.rotation.angle}°`;
+      drawRotationPreview();
+    });
+
+    btnConfirmRotation.addEventListener('click', () => {
+      const finalAngle = appState.rotation.angle;
+      const canvases = appState.rotation.tempCanvases;
+      const cb = appState.rotation.callback;
+      rotationModal.classList.add('hidden');
+
+      if (cb) {
+        showLoading('回転を適用中...');
+        setTimeout(() => {
+          const rotatedCanvases = canvases.map(src => {
+            if (finalAngle === 0) return src;
+            const is90or270 = finalAngle === 90 || finalAngle === 270;
+            const dest = document.createElement('canvas');
+            dest.width = is90or270 ? src.height : src.width;
+            dest.height = is90or270 ? src.width : src.height;
+            const dctx = dest.getContext('2d');
+            dctx.translate(dest.width / 2, dest.height / 2);
+            dctx.rotate((finalAngle * Math.PI) / 180);
+            dctx.drawImage(src, -src.width / 2, -src.height / 2);
+            return dest;
+          });
+          cb(rotatedCanvases);
+          hideLoading();
+        }, 50);
+      }
+    });
+
     // ================= ドラッグ＆ドロップ (ファイル読み込み) =================
     viewStep1.addEventListener('dragover', (e) => { e.preventDefault(); viewStep1.classList.add('drag-over-overlay'); });
     viewStep1.addEventListener('dragleave', (e) => {
@@ -993,16 +1094,11 @@
       const files = e.dataTransfer.files;
       if (files && files.length > 0) {
         const file = files[0];
-        showLoading('模範解答用紙を展開中...');
         try {
           if (file.type === 'application/pdf') await s1LoadPDF(file);
           else if (file.type.startsWith('image/')) await s1LoadImageFile(file);
           else alert('対応フォーマットはPDFまたは画像です。');
-        } catch (err) {
-          alert('読み込みエラー: ' + err.message);
-        } finally {
-          hideLoading();
-        }
+        } catch (err) { alert('読み込みエラー: ' + err.message); }
       }
     });
 
@@ -1016,10 +1112,7 @@
       const files = e.dataTransfer.files;
       if (files && files.length > 0) {
         const file = files[0];
-        if (file.type !== 'application/pdf') {
-          alert('生徒答案はPDFファイルをドロップしてください。');
-          return;
-        }
+        if (file.type !== 'application/pdf') { alert('生徒答案はPDFファイルをドロップしてください。'); return; }
         await processStudentsPdf(file);
       }
     });
@@ -1061,19 +1154,18 @@
     document.getElementById('s1-file-input').addEventListener('change', async (e) => {
       const file = e.target.files[0];
       if (!file) return;
-      showLoading('模範解答用紙を展開中...');
       try {
         if (file.type === 'application/pdf') await s1LoadPDF(file);
         else if (file.type.startsWith('image/')) await s1LoadImageFile(file);
       } catch (err) {
         alert('読み込みエラー: ' + err.message);
       } finally {
-        hideLoading();
         e.target.value = '';
       }
     });
 
     async function s1LoadPDF(file) {
+      showLoading('模範解答PDFを展開中...');
       const arrayBuffer = await file.arrayBuffer();
       const pdf = await pdfjsLib.getDocument({
         data: arrayBuffer,
@@ -1082,13 +1174,10 @@
       }).promise;
 
       const numPages = pdf.numPages;
-      appState.s1.pagesPerStudent = numPages;
-      appState.s1.pages = [];
-      appState.s1.boxes = [];
-      appState.s1.selectedIds = [];
+      const rawCanvases = [];
 
       for (let p = 1; p <= numPages; p++) {
-        loadingSubtitle.textContent = `模範解答 ページ ${p} / ${numPages} を展開中...`;
+        loadingSubtitle.textContent = `ページ ${p} / ${numPages} をレンダリング中...`;
         const page = await pdf.getPage(p);
         const baseViewport = page.getViewport({ scale: 1.0 });
         const targetScale = Math.min(2200 / baseViewport.width, 2.5);
@@ -1099,24 +1188,32 @@
         pageCanvas.height = Math.round(viewport.height);
         const pageCtx = pageCanvas.getContext('2d');
         await page.render({ canvasContext: pageCtx, viewport: viewport }).promise;
-
-        appState.s1.pages.push({
-          pageNum: p,
-          canvas: pageCanvas,
-          dataUrl: pageCanvas.toDataURL('image/jpeg', 0.9),
-          width: pageCanvas.width,
-          height: pageCanvas.height
-        });
+        rawCanvases.push(pageCanvas);
       }
+      hideLoading();
 
-      s1EmptyState.classList.add('hidden');
-      renderS1PageTabs();
-      switchS1Page(1);
-      triggerAutoSave();
+      // 90度回転補正モーダルをオープン
+      openRotationModal('模範解答 用紙の向き確認', rawCanvases, (finalCanvases) => {
+        appState.s1.pagesPerStudent = finalCanvases.length;
+        appState.s1.pages = finalCanvases.map((cv, idx) => ({
+          pageNum: idx + 1,
+          canvas: cv,
+          dataUrl: cv.toDataURL('image/jpeg', 0.9),
+          width: cv.width,
+          height: cv.height
+        }));
+        appState.s1.boxes = [];
+        appState.s1.selectedIds = [];
+        s1EmptyState.classList.add('hidden');
+        renderS1PageTabs();
+        switchS1Page(1);
+        triggerAutoSave();
+      });
     }
 
     function s1LoadImageFile(file) {
       return new Promise((resolve, reject) => {
+        showLoading('模範解答画像を展開中...');
         const reader = new FileReader();
         reader.onload = (ev) => {
           const img = new Image();
@@ -1126,24 +1223,28 @@
             pageCanvas.height = img.height;
             const pageCtx = pageCanvas.getContext('2d');
             pageCtx.drawImage(img, 0, 0);
+            hideLoading();
 
-            appState.s1.pagesPerStudent = 1;
-            appState.s1.pages = [{
-              pageNum: 1,
-              canvas: pageCanvas,
-              dataUrl: ev.target.result,
-              width: img.width,
-              height: img.height
-            }];
-            appState.s1.boxes = [];
-            appState.s1.selectedIds = [];
-            s1EmptyState.classList.add('hidden');
-            renderS1PageTabs();
-            switchS1Page(1);
-            triggerAutoSave();
-            resolve();
+            openRotationModal('模範解答 用紙の向き確認', [pageCanvas], (finalCanvases) => {
+              const cv = finalCanvases[0];
+              appState.s1.pagesPerStudent = 1;
+              appState.s1.pages = [{
+                pageNum: 1,
+                canvas: cv,
+                dataUrl: cv.toDataURL('image/jpeg', 0.9),
+                width: cv.width,
+                height: cv.height
+              }];
+              appState.s1.boxes = [];
+              appState.s1.selectedIds = [];
+              s1EmptyState.classList.add('hidden');
+              renderS1PageTabs();
+              switchS1Page(1);
+              triggerAutoSave();
+              resolve();
+            });
           };
-          img.onerror = () => reject(new Error('画像を展開できませんでした。'));
+          img.onerror = () => { hideLoading(); reject(new Error('画像を読み込めませんでした。')); };
           img.src = ev.target.result;
         };
         reader.readAsDataURL(file);
@@ -1545,7 +1646,6 @@
       }
     }
 
-    // 枠一覧描画 ＆ ドラッグ＆ドロップ並び替え
     function s1UpdateSidebar() {
       const listEl = document.getElementById('s1-boxes-list');
       const boxCount = document.getElementById('s1-box-count');
@@ -1644,9 +1744,7 @@
 
         item.addEventListener('dragend', () => {
           item.classList.remove('dragging');
-          document.querySelectorAll('.box-drag-item').forEach(el => {
-            el.classList.remove('drag-over-top', 'drag-over-bottom');
-          });
+          document.querySelectorAll('.box-drag-item').forEach(el => el.classList.remove('drag-over-top', 'drag-over-bottom'));
         });
 
         item.addEventListener('dragover', (e) => {
@@ -1663,9 +1761,7 @@
           }
         });
 
-        item.addEventListener('dragleave', () => {
-          item.classList.remove('drag-over-top', 'drag-over-bottom');
-        });
+        item.addEventListener('dragleave', () => item.classList.remove('drag-over-top', 'drag-over-bottom'));
 
         item.addEventListener('drop', (e) => {
           e.preventDefault();
@@ -1694,9 +1790,7 @@
 
         item.onclick = (e) => {
           if (e.target.tagName === 'INPUT' || e.target.closest('button')) return;
-          if (box.page !== appState.s1.currentPage) {
-            switchS1Page(box.page);
-          }
+          if (box.page !== appState.s1.currentPage) switchS1Page(box.page);
           if (e.shiftKey || e.ctrlKey || e.metaKey) {
             if (appState.s1.selectedIds.includes(box.id)) appState.s1.selectedIds = appState.s1.selectedIds.filter(id => id !== box.id);
             else appState.s1.selectedIds.push(box.id);
@@ -1975,11 +2069,8 @@
           s1UpdateSidebar();
           triggerAutoSave();
           alert(`Excelから ${count} 件を反映しました。`);
-        } catch (err) {
-          alert('Excel読み込みエラー: ' + err.message);
-        } finally {
-          e.target.value = '';
-        }
+        } catch (err) { alert('Excel読み込みエラー: ' + err.message); }
+        finally { e.target.value = ''; }
       };
       reader.readAsArrayBuffer(file);
     });
@@ -2083,6 +2174,7 @@
     s2BtnStream1.addEventListener('click', () => setS2Stream(1));
     s2BtnStream2.addEventListener('click', () => setS2Stream(2));
 
+    // ================= 採点タイル描画 ＆ ホバー氏名ツールチップ =================
     function renderS2Tiles() {
       if (appState.s2.students.length === 0) {
         s2EmptyWorkspace.classList.remove('hidden');
@@ -2120,8 +2212,9 @@
         let cardBorderClass = 'border-slate-700 hover:border-slate-500';
         if (isMismatch) cardBorderClass = 'mismatch-card border-rose-500 ring-1 ring-rose-500';
 
+        // ★ クラス名の競合を排除
         card.className = `student-card bg-slate-800 rounded-xl border p-2 flex flex-col justify-between transition-all relative shadow ${
-          isActive ? 'active-card border-indigo-500 ring-2 ring-indigo-500' : cardBorderClass
+          isActive ? 'active-card' : cardBorderClass
         }`;
         card.dataset.index = idx;
 
@@ -2161,7 +2254,10 @@
 
         card.innerHTML = `
           <div class="flex items-center justify-between mb-1.5 pb-1 border-b border-slate-700">
-            <span class="font-mono font-bold text-xs text-white">#${std.studentNum}</span>
+            <span class="std-num-hover-badge cursor-help px-1.5 py-0.5 bg-slate-900 hover:bg-indigo-900 rounded border border-slate-700 hover:border-indigo-400 font-mono font-bold text-xs text-white transition flex items-center space-x-1" data-index="${idx}">
+              <i class="fa-solid fa-user text-[10px] text-teal-400"></i>
+              <span>#${std.studentNum}</span>
+            </span>
             ${badgeHtml}
           </div>
           <div class="peeking-window relative h-28 bg-white rounded border border-slate-600 overflow-hidden shadow-inner" data-index="${idx}">
@@ -2171,7 +2267,7 @@
             </div>
           </div>
           <div class="mt-1.5 flex justify-between items-center text-[10px] text-slate-400 font-mono">
-            <span>${std.name || '生徒'}</span>
+            <span class="truncate max-w-[90px]">${std.name || '生徒'}</span>
             <span>配点: ${curQ.points} (P.${curQ.page || 1})</span>
           </div>
         `;
@@ -2180,6 +2276,11 @@
         const tileCanvas = card.querySelector('.tile-canvas');
         drawPeekingTile(tileCanvas, std, curQ, offset);
         setupPeekingWindowInteraction(card.querySelector('.peeking-window'), idx, std, curQ);
+
+        // ★ 生徒番号ホバー時の氏名ポップアップイベント ★
+        const numBadge = card.querySelector('.std-num-hover-badge');
+        numBadge.addEventListener('mouseenter', (e) => showStudentNameTooltip(e, std));
+        numBadge.addEventListener('mouseleave', hideStudentNameTooltip);
       });
 
       if (appState.s2.isDoubleMode && mismatchCount > 0) {
@@ -2190,6 +2291,41 @@
       }
 
       highlightS2ActiveCard();
+    }
+
+    function showStudentNameTooltip(e, student) {
+      const nameBox = appState.s2.metaBoxes.find(b => b.category === 'student_name');
+      tooltipStdNum.textContent = `#${student.studentNum} (${student.name})`;
+
+      const p1Img = student.fullPageImgElements && student.fullPageImgElements[0];
+      if (p1Img && p1Img.complete && nameBox && nameBox.normalized) {
+        const cropCanvas = document.createElement('canvas');
+        const cropCtx = cropCanvas.getContext('2d');
+        const bx = Math.round(nameBox.normalized.x * p1Img.width);
+        const by = Math.round(nameBox.normalized.y * p1Img.height);
+        const bw = Math.round(nameBox.normalized.w * p1Img.width);
+        const bh = Math.round(nameBox.normalized.h * p1Img.height);
+
+        cropCanvas.width = bw;
+        cropCanvas.height = bh;
+        cropCtx.drawImage(p1Img, bx, by, bw, bh, 0, 0, bw, bh);
+
+        tooltipNameImg.src = cropCanvas.toDataURL('image/jpeg', 0.88);
+        tooltipNameImg.classList.remove('hidden');
+        tooltipNameEmpty.classList.add('hidden');
+      } else {
+        tooltipNameImg.classList.add('hidden');
+        tooltipNameEmpty.classList.remove('hidden');
+      }
+
+      const rect = e.target.getBoundingClientRect();
+      tooltipEl.style.left = `${Math.min(window.innerWidth - 220, rect.left)}px`;
+      tooltipEl.style.top = `${Math.max(10, rect.top - 95)}px`;
+      tooltipEl.classList.remove('hidden');
+    }
+
+    function hideStudentNameTooltip() {
+      tooltipEl.classList.add('hidden');
     }
 
     function drawPeekingTile(canvasEl, student, question, offset) {
@@ -2254,6 +2390,7 @@
       });
     }
 
+    // ★ 選択中青枠の完全単一化ハイライト ★
     function highlightS2ActiveCard() {
       const cards = document.querySelectorAll('#s2-tiles-grid .student-card');
       cards.forEach(card => {
@@ -2267,13 +2404,12 @@
       });
     }
 
-    // ★ Step 2 採点キーバインド（カスタムキー対応 ＆ Space拡大の安定化） ★
+    // ================= Step 2 採点キーバインド =================
     window.addEventListener('keydown', (e) => {
       if (appState.currentStep !== 2) return;
       if (appState.listeningKeyType) return;
 
-      // モーダル表示中のキーハンドリング
-      if (!zoomModal.classList.contains('hidden') || !studentNumModal.classList.contains('hidden')) {
+      if (!zoomModal.classList.contains('hidden') || !studentNumModal.classList.contains('hidden') || !rotationModal.classList.contains('hidden')) {
         if (!zoomModal.classList.contains('hidden') && (e.code === 'Space' || e.key === 'Escape')) {
           e.preventDefault();
           closeModal();
@@ -2281,7 +2417,6 @@
         return;
       }
 
-      // 入力フォームでのタイピング中は採点ショートカットを無視
       if (document.activeElement.tagName === 'INPUT' || document.activeElement.tagName === 'TEXTAREA' || document.activeElement.tagName === 'SELECT') {
         return;
       }
@@ -2298,21 +2433,19 @@
         return;
       }
 
-      // ★ カスタム満点キー
+      // 満点 / 0点
       if (pressedKey === appState.customKeys.correct) {
         e.preventDefault();
         assignS2Score(maxPts);
         return;
       }
-
-      // ★ カスタム0点キー
       if (pressedKey === appState.customKeys.wrong) {
         e.preventDefault();
         assignS2Score(0);
         return;
       }
 
-      // ★ カスタム設問切替キー（前問 / 次問）
+      // 設問切替
       if (pressedKey === appState.customKeys.prevQ) {
         e.preventDefault();
         document.getElementById('s2-prev-q-btn').click();
@@ -2324,7 +2457,7 @@
         return;
       }
 
-      // 部分点数字キー（0〜9）
+      // 部分点（0〜9）
       if (/^[0-9]$/.test(e.key)) {
         e.preventDefault();
         const inputNum = parseInt(e.key, 10);
@@ -2382,9 +2515,9 @@
       renderS2Tiles();
     });
 
-    // ================= 拡大モーダル（Spaceキー対応・確実なセンタリング描画） =================
-    let modalPan = { x: 0, y: 0, isDragging: false, startX: 0, startY: 0 };
-    
+    // ================= ★ 拡大モーダル（Canvas直接描画・設問クローズアップ安定版） ★ =================
+    let modalTransform = { scale: 1, panX: 0, panY: 0, isDragging: false, startX: 0, startY: 0 };
+
     function openModal() {
       const curQ = appState.s2.questions[appState.s2.currentQIndex];
       const student = appState.s2.students[appState.s2.activeStudentIndex];
@@ -2392,10 +2525,10 @@
 
       modalTitle.textContent = `出席番号 ${student.studentNum}番 (${student.name}) - 設問 ${curQ.name}`;
       appState.s2.modalViewPage = curQ.page || 1;
-      
+
       zoomModal.classList.remove('hidden');
       renderModalPageTabs();
-      loadModalPageImage();
+      resetModalViewToQuestion();
     }
 
     function renderModalPageTabs() {
@@ -2413,72 +2546,153 @@
         btn.onclick = () => {
           appState.s2.modalViewPage = p;
           renderModalPageTabs();
-          loadModalPageImage();
+          resetModalViewToQuestion();
         };
         modalPageTabs.appendChild(btn);
       }
     }
 
-    function loadModalPageImage() {
+    function resetModalViewToQuestion() {
+      const student = appState.s2.students[appState.s2.activeStudentIndex];
+      const curQ = appState.s2.questions[appState.s2.currentQIndex];
+      if (!student) return;
+
+      const pageIndex = appState.s2.modalViewPage - 1;
+      const fullImg = student.fullPageImgElements && student.fullPageImgElements[pageIndex];
+      if (!fullImg || !fullImg.complete) return;
+
+      const vw = modalViewport.clientWidth || 800;
+      const vh = modalViewport.clientHeight || 500;
+      const isCurQPage = (curQ.page || 1) === appState.s2.modalViewPage;
+      const norm = isCurQPage && curQ.normalized ? curQ.normalized : { x: 0.1, y: 0.1, w: 0.35, h: 0.1 };
+
+      const qPixelW = norm.w * fullImg.width;
+      const qPixelH = norm.h * fullImg.height;
+
+      // 画面の70%の大きさに拡大
+      const targetScale = Math.min((vw * 0.72) / qPixelW, (vh * 0.72) / qPixelH, 2.5);
+      modalTransform.scale = Math.max(0.4, targetScale);
+
+      const qCenterX = (norm.x + norm.w / 2) * fullImg.width;
+      const qCenterY = (norm.y + norm.h / 2) * fullImg.height;
+
+      modalTransform.panX = vw / 2 - qCenterX * modalTransform.scale;
+      modalTransform.panY = vh / 2 - qCenterY * modalTransform.scale;
+
+      renderModalZoomCanvas();
+    }
+
+    function fitModalViewToPaper() {
+      const student = appState.s2.students[appState.s2.activeStudentIndex];
+      if (!student) return;
+      const pageIndex = appState.s2.modalViewPage - 1;
+      const fullImg = student.fullPageImgElements && student.fullPageImgElements[pageIndex];
+      if (!fullImg || !fullImg.complete) return;
+
+      const vw = modalViewport.clientWidth || 800;
+      const vh = modalViewport.clientHeight || 500;
+
+      const scaleX = (vw - 32) / fullImg.width;
+      const scaleY = (vh - 32) / fullImg.height;
+      modalTransform.scale = Math.min(scaleX, scaleY, 1.0);
+      modalTransform.panX = (vw - fullImg.width * modalTransform.scale) / 2;
+      modalTransform.panY = (vh - fullImg.height * modalTransform.scale) / 2;
+
+      renderModalZoomCanvas();
+    }
+
+    btnModalResetView.onclick = resetModalViewToQuestion;
+    btnModalFitView.onclick = fitModalViewToPaper;
+
+    function renderModalZoomCanvas() {
       const student = appState.s2.students[appState.s2.activeStudentIndex];
       if (!student) return;
 
       const pageIndex = appState.s2.modalViewPage - 1;
-      const imgUrl = student.fullPageImages && student.fullPageImages[pageIndex];
-      if (!imgUrl) return;
+      const fullImg = student.fullPageImgElements && student.fullPageImgElements[pageIndex];
+      if (!fullImg || !fullImg.complete) return;
 
+      const vw = modalViewport.clientWidth || 800;
+      const vh = modalViewport.clientHeight || 500;
+
+      modalZoomCanvas.width = vw;
+      modalZoomCanvas.height = vh;
+
+      modalZoomCtx.clearRect(0, 0, vw, vh);
+
+      modalZoomCtx.save();
+      modalZoomCtx.translate(modalTransform.panX, modalTransform.panY);
+      modalZoomCtx.scale(modalTransform.scale, modalTransform.scale);
+
+      // 用紙本体の描画
+      modalZoomCtx.drawImage(fullImg, 0, 0);
+
+      // 対象設問のハイライト枠線を描画
       const curQ = appState.s2.questions[appState.s2.currentQIndex];
-      const isCurQPage = (curQ.page || 1) === appState.s2.modalViewPage;
-      const norm = isCurQPage && curQ.normalized ? curQ.normalized : { x: 0.1, y: 0.1, w: 0.3, h: 0.08 };
+      if (curQ && (curQ.page || 1) === appState.s2.modalViewPage && curQ.normalized) {
+        const qx = curQ.normalized.x * fullImg.width;
+        const qy = curQ.normalized.y * fullImg.height;
+        const qw = curQ.normalized.w * fullImg.width;
+        const qh = curQ.normalized.h * fullImg.height;
 
-      modalFullImg.onload = () => {
-        const vw = modalViewport.clientWidth || 800;
-        const vh = modalViewport.clientHeight || 500;
-        const imgW = modalFullImg.naturalWidth || modalFullImg.clientWidth || 2000;
-        const imgH = modalFullImg.naturalHeight || modalFullImg.clientHeight || 2800;
+        modalZoomCtx.strokeStyle = '#6366f1';
+        modalZoomCtx.lineWidth = Math.max(3, Math.round(4 / modalTransform.scale));
+        modalZoomCtx.strokeRect(qx, qy, qw, qh);
 
-        // 対象設問の中心をビューポート中央にフォーカス
-        modalPan.x = Math.round(-(norm.x + norm.w / 2) * imgW + vw / 2);
-        modalPan.y = Math.round(-(norm.y + norm.h / 2) * imgH + vh / 2);
-        applyModalTransform();
-      };
+        modalZoomCtx.fillStyle = 'rgba(99, 102, 241, 0.12)';
+        modalZoomCtx.fillRect(qx, qy, qw, qh);
 
-      modalFullImg.src = imgUrl;
-      if (modalFullImg.complete && modalFullImg.naturalWidth > 0) {
-        modalFullImg.onload();
+        // ラベルタグ描画
+        modalZoomCtx.fillStyle = '#6366f1';
+        const fontSize = Math.max(16, Math.round(20 / modalTransform.scale));
+        modalZoomCtx.font = `bold ${fontSize}px sans-serif`;
+        modalZoomCtx.fillText(`設問: ${curQ.name} (${curQ.points}点)`, qx, Math.max(25, qy - 8));
       }
+
+      modalZoomCtx.restore();
     }
 
     function closeModal() {
       zoomModal.classList.add('hidden');
     }
 
-    function applyModalTransform() {
-      modalCanvasWrapper.style.transform = `matrix(1, 0, 0, 1, ${modalPan.x}, ${modalPan.y})`;
-    }
-
     modalViewport.addEventListener('mousedown', (e) => {
       if (e.button !== 0) return;
-      modalPan.isDragging = true;
-      modalPan.startX = e.clientX - modalPan.x;
-      modalPan.startY = e.clientY - modalPan.y;
+      modalTransform.isDragging = true;
+      modalTransform.startX = e.clientX - modalTransform.panX;
+      modalTransform.startY = e.clientY - modalTransform.panY;
       modalViewport.classList.add('cursor-grabbing');
       e.preventDefault();
     });
 
     window.addEventListener('mousemove', (e) => {
-      if (!modalPan.isDragging) return;
-      modalPan.x = e.clientX - modalPan.startX;
-      modalPan.y = e.clientY - modalPan.startY;
-      applyModalTransform();
+      if (!modalTransform.isDragging) return;
+      modalTransform.panX = e.clientX - modalTransform.startX;
+      modalTransform.panY = e.clientY - modalTransform.startY;
+      renderModalZoomCanvas();
     });
 
     window.addEventListener('mouseup', () => {
-      if (modalPan.isDragging) {
-        modalPan.isDragging = false;
+      if (modalTransform.isDragging) {
+        modalTransform.isDragging = false;
         modalViewport.classList.remove('cursor-grabbing');
       }
     });
+
+    modalViewport.addEventListener('wheel', (e) => {
+      e.preventDefault();
+      const zoomFactor = e.deltaY < 0 ? 1.15 : 0.87;
+      const rect = modalViewport.getBoundingClientRect();
+      const mouseX = e.clientX - rect.left;
+      const mouseY = e.clientY - rect.top;
+
+      const newScale = Math.max(0.15, Math.min(5.0, modalTransform.scale * zoomFactor));
+      modalTransform.panX = mouseX - (mouseX - modalTransform.panX) * (newScale / modalTransform.scale);
+      modalTransform.panY = mouseY - (mouseY - modalTransform.panY) * (newScale / modalTransform.scale);
+      modalTransform.scale = newScale;
+
+      renderModalZoomCanvas();
+    }, { passive: false });
 
     // ================= 出席番号確認モーダル =================
     document.getElementById('s2-open-num-modal-btn').addEventListener('click', () => {
@@ -2571,7 +2785,7 @@
       });
     }
 
-    // ================= 答案PDF展開 =================
+    // ================= 答案PDF展開 ＆ 90度回転補正 =================
     async function processStudentsPdf(file) {
       if (appState.s2.questions.length === 0) {
         alert('設問枠が設定されていません。Step 1 で枠を設定してください。');
@@ -2592,75 +2806,82 @@
         const totalPdfPages = pdf.numPages;
 
         if (totalPdfPages % pagesPerStudent !== 0) {
-          const msg = `⚠️ 答案PDFの総ページ数（${totalPdfPages}ページ）が、解答用紙の構成（1人あたり ${pagesPerStudent} ページ）で割り切れません。\n\n用紙詰まりや欠落がないかPDFを確認してください。`;
-          alert(msg);
+          alert(`⚠️ 答案PDFの総ページ数（${totalPdfPages}ページ）が、解答用紙の構成（1人あたり ${pagesPerStudent} ページ）で割り切れません。\n\n用紙詰まりや欠落がないかPDFを確認してください。`);
           hideLoading();
           return;
         }
 
-        const studentCount = totalPdfPages / pagesPerStudent;
-        const newStudents = [];
-        const vCanvas = document.createElement('canvas');
-        const vCtx = vCanvas.getContext('2d');
-
-        for (let s = 0; s < studentCount; s++) {
-          const studentNum = s + 1;
-          const stdImages = [];
-          const stdImgElements = [];
-          const stdScores1 = {};
-          const stdScores2 = {};
-
-          appState.s2.questions.forEach(q => {
-            stdScores1[q.id] = null;
-            stdScores2[q.id] = null;
-          });
-
-          for (let p = 1; p <= pagesPerStudent; p++) {
-            const actualPdfPageNum = s * pagesPerStudent + p;
-            loadingSubtitle.textContent = `生徒 ${studentNum} / ${studentCount} 人目 (P.${p}) を処理中... (${Math.round((actualPdfPageNum / totalPdfPages) * 100)}%)`;
-
-            const page = await pdf.getPage(actualPdfPageNum);
-            const viewport = page.getViewport({ scale: 2.0 });
-            vCanvas.width = viewport.width;
-            vCanvas.height = viewport.height;
-
-            await page.render({ canvasContext: vCtx, viewport: viewport }).promise;
-
-            const pageDataUrl = vCanvas.toDataURL('image/jpeg', 0.82);
-            stdImages.push(pageDataUrl);
-
-            const imgEl = new Image();
-            imgEl.src = pageDataUrl;
-            stdImgElements.push(imgEl);
-          }
-
-          newStudents.push({
-            studentNum: studentNum,
-            name: `生徒 ${studentNum}`,
-            fullPageImages: stdImages,
-            fullPageImgElements: stdImgElements,
-            scores1: stdScores1,
-            scores2: stdScores2
-          });
+        const rawPages = [];
+        for (let p = 1; p <= totalPdfPages; p++) {
+          loadingSubtitle.textContent = `ページ ${p} / ${totalPdfPages} をレンダリング中...`;
+          const page = await pdf.getPage(p);
+          const viewport = page.getViewport({ scale: 2.0 });
+          const vCanvas = document.createElement('canvas');
+          vCanvas.width = viewport.width;
+          vCanvas.height = viewport.height;
+          const vCtx = vCanvas.getContext('2d');
+          await page.render({ canvasContext: vCtx, viewport: viewport }).promise;
+          rawPages.push(vCanvas);
         }
+        hideLoading();
 
-        appState.s2.students = newStudents;
-        appState.s2.activeStudentIndex = 0;
-        appState.s2.tileOffsets = {};
-        renderS2Tiles();
-        updateS2Progress();
-        triggerAutoSave();
+        // 生徒答案の回転確認
+        openRotationModal('生徒答案 用紙の向き確認', rawPages, (rotatedPages) => {
+          showLoading('生徒答案データを構築中...');
+          const studentCount = rotatedPages.length / pagesPerStudent;
+          const newStudents = [];
 
-        setTimeout(() => {
-          if (confirm(`答案PDFの展開が完了しました（全 ${studentCount} 名分・${pagesPerStudent}ページ構成）。\n出席番号の確認・修正画面を開きますか？`)) {
-            document.getElementById('s2-open-num-modal-btn').click();
+          for (let s = 0; s < studentCount; s++) {
+            const studentNum = s + 1;
+            const stdImages = [];
+            const stdImgElements = [];
+            const stdScores1 = {};
+            const stdScores2 = {};
+
+            appState.s2.questions.forEach(q => {
+              stdScores1[q.id] = null;
+              stdScores2[q.id] = null;
+            });
+
+            for (let p = 1; p <= pagesPerStudent; p++) {
+              const actualIdx = s * pagesPerStudent + (p - 1);
+              const cv = rotatedPages[actualIdx];
+              const pageDataUrl = cv.toDataURL('image/jpeg', 0.82);
+              stdImages.push(pageDataUrl);
+
+              const imgEl = new Image();
+              imgEl.src = pageDataUrl;
+              stdImgElements.push(imgEl);
+            }
+
+            newStudents.push({
+              studentNum: studentNum,
+              name: `生徒 ${studentNum}`,
+              fullPageImages: stdImages,
+              fullPageImgElements: stdImgElements,
+              scores1: stdScores1,
+              scores2: stdScores2
+            });
           }
-        }, 200);
+
+          appState.s2.students = newStudents;
+          appState.s2.activeStudentIndex = 0;
+          appState.s2.tileOffsets = {};
+          renderS2Tiles();
+          updateS2Progress();
+          triggerAutoSave();
+          hideLoading();
+
+          setTimeout(() => {
+            if (confirm(`答案PDFの展開が完了しました（全 ${studentCount} 名分・${pagesPerStudent}ページ構成）。\n出席番号の確認・修正画面を開きますか？`)) {
+              document.getElementById('s2-open-num-modal-btn').click();
+            }
+          }, 200);
+        });
 
       } catch (err) {
-        alert('答案PDFの処理中にエラーが発生しました: ' + err.message);
-      } finally {
         hideLoading();
+        alert('答案PDFの処理中にエラーが発生しました: ' + err.message);
       }
     }
 
@@ -2898,7 +3119,7 @@
       setTimeout(() => {
         try {
           const exportData = {
-            version: "3.2",
+            version: "3.3",
             appName: "でじたる採点くん",
             createdAt: new Date().toISOString(),
             pagesPerStudent: appState.s1.pagesPerStudent,
@@ -2938,11 +3159,8 @@
           s1UpdateSidebar();
           triggerAutoSave();
           alert(`JSONから ${json.items.length} 件の枠データを読み込みました！`);
-        } catch (err) {
-          alert('JSON読込エラー: ' + err.message);
-        } finally {
-          e.target.value = '';
-        }
+        } catch (err) { alert('JSON読込エラー: ' + err.message); }
+        finally { e.target.value = ''; }
       };
       reader.readAsText(file);
     });
