@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>でじたる採点くん Ver 3.3</title>
+  <title>でじたる採点くん Ver 3.4 安定版</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script>
@@ -25,7 +25,6 @@
     #viewport-container.panning { cursor: grab; }
     #viewport-container.is-panning { cursor: grabbing !important; }
     
-    /* 選択中の単一アクティブカード */
     .student-card.active-card {
       outline: 3px solid #6366f1 !important;
       outline-offset: 2px;
@@ -65,7 +64,7 @@
         <i class="fa-solid fa-pen-ruler text-xs"></i>
       </div>
       <span class="font-bold text-sm tracking-wide text-white">でじたる採点くん</span>
-      <span class="text-[10px] bg-slate-800 text-slate-400 px-2 py-0.5 rounded font-mono">Ver 3.3 安定統合版</span>
+      <span class="text-[10px] bg-slate-800 text-slate-400 px-2 py-0.5 rounded font-mono">Ver 3.4 安定版</span>
       <span id="autosave-indicator" class="text-[10px] text-emerald-400 flex items-center space-x-1 ml-2">
         <i class="fa-solid fa-cloud-arrow-up"></i><span>自動保存済</span>
       </span>
@@ -495,7 +494,7 @@
     </div>
   </div>
 
-  <!-- ★ 90度回転補正・確認モーダル ★ -->
+  <!-- 90度回転補正・確認モーダル -->
   <div id="rotation-modal" class="fixed inset-0 bg-slate-950/90 backdrop-blur-md z-50 flex flex-col items-center justify-center p-4 hidden">
     <div class="bg-slate-900 border border-slate-700 rounded-2xl shadow-2xl w-full max-w-3xl flex flex-col overflow-hidden">
       <div class="px-4 py-3 bg-slate-800 border-b border-slate-700 flex justify-between items-center shrink-0">
@@ -527,7 +526,7 @@
     </div>
   </div>
 
-  <!-- ★ 拡大モーダル（Canvas直接描画・設問クローズアップ安定版） ★ -->
+  <!-- ★ 拡大モーダル（レイアウト確定同期＆非同期ロード保証 安定版） ★ -->
   <div id="zoom-modal" class="fixed inset-0 bg-slate-950/85 backdrop-blur-sm z-50 flex flex-col items-center justify-center p-4 hidden">
     <div class="relative bg-slate-900 border border-slate-700 rounded-xl p-3 shadow-2xl w-full max-w-5xl max-h-[92vh] flex flex-col items-center">
       <div class="w-full flex justify-between items-center mb-2 px-2">
@@ -555,7 +554,7 @@
     </div>
   </div>
 
-  <!-- ★ 生徒番号ホバー時の氏名ポップアップ（ツールチップ） ★ -->
+  <!-- 生徒番号ホバー時の氏名ポップアップ -->
   <div id="student-name-tooltip" class="fixed hidden z-50 pointer-events-none transition-opacity duration-150 bg-slate-900 border-2 border-indigo-500 rounded-xl shadow-2xl p-2 flex flex-col items-center">
     <div class="text-[10px] font-bold text-indigo-300 mb-1 flex items-center justify-between w-full px-1">
       <span id="tooltip-std-num">#1</span>
@@ -638,7 +637,6 @@
         tileOffsets: {},
         modalViewPage: 1
       },
-      // 回転補正モーダル管理
       rotation: {
         angle: 0,
         tempCanvases: [],
@@ -1015,7 +1013,7 @@
       triggerAutoSave();
     }
 
-    // ================= ★ 90度回転補正システム ★ =================
+    // ================= 90度回転補正システム =================
     function openRotationModal(title, sourceCanvases, onConfirmCallback) {
       appState.rotation.angle = 0;
       appState.rotation.tempCanvases = sourceCanvases;
@@ -1192,7 +1190,6 @@
       }
       hideLoading();
 
-      // 90度回転補正モーダルをオープン
       openRotationModal('模範解答 用紙の向き確認', rawCanvases, (finalCanvases) => {
         appState.s1.pagesPerStudent = finalCanvases.length;
         appState.s1.pages = finalCanvases.map((cv, idx) => ({
@@ -2212,7 +2209,6 @@
         let cardBorderClass = 'border-slate-700 hover:border-slate-500';
         if (isMismatch) cardBorderClass = 'mismatch-card border-rose-500 ring-1 ring-rose-500';
 
-        // ★ クラス名の競合を排除
         card.className = `student-card bg-slate-800 rounded-xl border p-2 flex flex-col justify-between transition-all relative shadow ${
           isActive ? 'active-card' : cardBorderClass
         }`;
@@ -2277,7 +2273,6 @@
         drawPeekingTile(tileCanvas, std, curQ, offset);
         setupPeekingWindowInteraction(card.querySelector('.peeking-window'), idx, std, curQ);
 
-        // ★ 生徒番号ホバー時の氏名ポップアップイベント ★
         const numBadge = card.querySelector('.std-num-hover-badge');
         numBadge.addEventListener('mouseenter', (e) => showStudentNameTooltip(e, std));
         numBadge.addEventListener('mouseleave', hideStudentNameTooltip);
@@ -2390,7 +2385,6 @@
       });
     }
 
-    // ★ 選択中青枠の完全単一化ハイライト ★
     function highlightS2ActiveCard() {
       const cards = document.querySelectorAll('#s2-tiles-grid .student-card');
       cards.forEach(card => {
@@ -2515,8 +2509,9 @@
       renderS2Tiles();
     });
 
-    // ================= ★ 拡大モーダル（Canvas直接描画・設問クローズアップ安定版） ★ =================
+    // ================= ★ 拡大モーダル（レイアウト確定同期＆ロード保証 安定版） ★ =================
     let modalTransform = { scale: 1, panX: 0, panY: 0, isDragging: false, startX: 0, startY: 0 };
+    let activeModalImage = null; // 現在モーダルで描画中の画像インスタンス
 
     function openModal() {
       const curQ = appState.s2.questions[appState.s2.currentQIndex];
@@ -2526,9 +2521,16 @@
       modalTitle.textContent = `出席番号 ${student.studentNum}番 (${student.name}) - 設問 ${curQ.name}`;
       appState.s2.modalViewPage = curQ.page || 1;
 
+      // モーダルを表示
       zoomModal.classList.remove('hidden');
       renderModalPageTabs();
-      resetModalViewToQuestion();
+
+      // ★ レイアウト確定後に確実に初期描画を行う
+      requestAnimationFrame(() => {
+        setTimeout(() => {
+          prepareAndRenderModalImage(true);
+        }, 30);
+      });
     }
 
     function renderModalPageTabs() {
@@ -2546,57 +2548,88 @@
         btn.onclick = () => {
           appState.s2.modalViewPage = p;
           renderModalPageTabs();
-          resetModalViewToQuestion();
+          prepareAndRenderModalImage(true);
         };
         modalPageTabs.appendChild(btn);
       }
     }
 
-    function resetModalViewToQuestion() {
+    // 画像のロード完了を確実に保証して描画する
+    function prepareAndRenderModalImage(shouldResetFocus = true) {
       const student = appState.s2.students[appState.s2.activeStudentIndex];
-      const curQ = appState.s2.questions[appState.s2.currentQIndex];
       if (!student) return;
 
       const pageIndex = appState.s2.modalViewPage - 1;
-      const fullImg = student.fullPageImgElements && student.fullPageImgElements[pageIndex];
-      if (!fullImg || !fullImg.complete) return;
+      let img = student.fullPageImgElements && student.fullPageImgElements[pageIndex];
+
+      // もし既存のImageエレメントがない、またはsrcが未設定の場合はDataURLから再生成
+      if (!img || !img.src) {
+        const dataUrl = student.fullPageImages && student.fullPageImages[pageIndex];
+        if (!dataUrl) return;
+        img = new Image();
+        img.src = dataUrl;
+        if (!student.fullPageImgElements) student.fullPageImgElements = [];
+        student.fullPageImgElements[pageIndex] = img;
+      }
+
+      activeModalImage = img;
+
+      // ロードが完了している場合
+      if (img.complete && img.naturalWidth > 0) {
+        if (shouldResetFocus) resetModalViewToQuestion();
+        else renderModalZoomCanvas();
+      } else {
+        // ロード中の場合はonloadハンドラで確実に描画をトリガー
+        img.onload = () => {
+          if (shouldResetFocus) resetModalViewToQuestion();
+          else renderModalZoomCanvas();
+        };
+      }
+    }
+
+    function resetModalViewToQuestion() {
+      const img = activeModalImage;
+      if (!img || !img.complete || img.naturalWidth === 0) return;
 
       const vw = modalViewport.clientWidth || 800;
       const vh = modalViewport.clientHeight || 500;
-      const isCurQPage = (curQ.page || 1) === appState.s2.modalViewPage;
+      const curQ = appState.s2.questions[appState.s2.currentQIndex];
+      const isCurQPage = curQ && (curQ.page || 1) === appState.s2.modalViewPage;
       const norm = isCurQPage && curQ.normalized ? curQ.normalized : { x: 0.1, y: 0.1, w: 0.35, h: 0.1 };
 
-      const qPixelW = norm.w * fullImg.width;
-      const qPixelH = norm.h * fullImg.height;
+      const imgW = img.naturalWidth;
+      const imgH = img.naturalHeight;
 
-      // 画面の70%の大きさに拡大
+      const qPixelW = Math.max(50, norm.w * imgW);
+      const qPixelH = Math.max(50, norm.h * imgH);
+
+      // 設問が画面の約70%程度になるよう自動スケーリング
       const targetScale = Math.min((vw * 0.72) / qPixelW, (vh * 0.72) / qPixelH, 2.5);
-      modalTransform.scale = Math.max(0.4, targetScale);
+      modalTransform.scale = Math.max(0.3, Math.min(3.0, targetScale));
 
-      const qCenterX = (norm.x + norm.w / 2) * fullImg.width;
-      const qCenterY = (norm.y + norm.h / 2) * fullImg.height;
+      const qCenterX = (norm.x + norm.w / 2) * imgW;
+      const qCenterY = (norm.y + norm.h / 2) * imgH;
 
-      modalTransform.panX = vw / 2 - qCenterX * modalTransform.scale;
-      modalTransform.panY = vh / 2 - qCenterY * modalTransform.scale;
+      modalTransform.panX = Math.round(vw / 2 - qCenterX * modalTransform.scale);
+      modalTransform.panY = Math.round(vh / 2 - qCenterY * modalTransform.scale);
 
       renderModalZoomCanvas();
     }
 
     function fitModalViewToPaper() {
-      const student = appState.s2.students[appState.s2.activeStudentIndex];
-      if (!student) return;
-      const pageIndex = appState.s2.modalViewPage - 1;
-      const fullImg = student.fullPageImgElements && student.fullPageImgElements[pageIndex];
-      if (!fullImg || !fullImg.complete) return;
+      const img = activeModalImage;
+      if (!img || !img.complete || img.naturalWidth === 0) return;
 
       const vw = modalViewport.clientWidth || 800;
       const vh = modalViewport.clientHeight || 500;
+      const imgW = img.naturalWidth;
+      const imgH = img.naturalHeight;
 
-      const scaleX = (vw - 32) / fullImg.width;
-      const scaleY = (vh - 32) / fullImg.height;
+      const scaleX = (vw - 32) / imgW;
+      const scaleY = (vh - 32) / imgH;
       modalTransform.scale = Math.min(scaleX, scaleY, 1.0);
-      modalTransform.panX = (vw - fullImg.width * modalTransform.scale) / 2;
-      modalTransform.panY = (vh - fullImg.height * modalTransform.scale) / 2;
+      modalTransform.panX = Math.round((vw - imgW * modalTransform.scale) / 2);
+      modalTransform.panY = Math.round((vh - imgH * modalTransform.scale) / 2);
 
       renderModalZoomCanvas();
     }
@@ -2605,12 +2638,8 @@
     btnModalFitView.onclick = fitModalViewToPaper;
 
     function renderModalZoomCanvas() {
-      const student = appState.s2.students[appState.s2.activeStudentIndex];
-      if (!student) return;
-
-      const pageIndex = appState.s2.modalViewPage - 1;
-      const fullImg = student.fullPageImgElements && student.fullPageImgElements[pageIndex];
-      if (!fullImg || !fullImg.complete) return;
+      const img = activeModalImage;
+      if (!img || !img.complete || img.naturalWidth === 0) return;
 
       const vw = modalViewport.clientWidth || 800;
       const vh = modalViewport.clientHeight || 500;
@@ -2624,16 +2653,18 @@
       modalZoomCtx.translate(modalTransform.panX, modalTransform.panY);
       modalZoomCtx.scale(modalTransform.scale, modalTransform.scale);
 
-      // 用紙本体の描画
-      modalZoomCtx.drawImage(fullImg, 0, 0);
+      // 用紙本体の描画（背面に白地と影を付与）
+      modalZoomCtx.fillStyle = '#ffffff';
+      modalZoomCtx.fillRect(0, 0, img.naturalWidth, img.naturalHeight);
+      modalZoomCtx.drawImage(img, 0, 0);
 
       // 対象設問のハイライト枠線を描画
       const curQ = appState.s2.questions[appState.s2.currentQIndex];
       if (curQ && (curQ.page || 1) === appState.s2.modalViewPage && curQ.normalized) {
-        const qx = curQ.normalized.x * fullImg.width;
-        const qy = curQ.normalized.y * fullImg.height;
-        const qw = curQ.normalized.w * fullImg.width;
-        const qh = curQ.normalized.h * fullImg.height;
+        const qx = curQ.normalized.x * img.naturalWidth;
+        const qy = curQ.normalized.y * img.naturalHeight;
+        const qw = curQ.normalized.w * img.naturalWidth;
+        const qh = curQ.normalized.h * img.naturalHeight;
 
         modalZoomCtx.strokeStyle = '#6366f1';
         modalZoomCtx.lineWidth = Math.max(3, Math.round(4 / modalTransform.scale));
@@ -2654,6 +2685,7 @@
 
     function closeModal() {
       zoomModal.classList.add('hidden');
+      activeModalImage = null;
     }
 
     modalViewport.addEventListener('mousedown', (e) => {
@@ -2825,7 +2857,6 @@
         }
         hideLoading();
 
-        // 生徒答案の回転確認
         openRotationModal('生徒答案 用紙の向き確認', rawPages, (rotatedPages) => {
           showLoading('生徒答案データを構築中...');
           const studentCount = rotatedPages.length / pagesPerStudent;
@@ -3119,7 +3150,7 @@
       setTimeout(() => {
         try {
           const exportData = {
-            version: "3.3",
+            version: "3.4",
             appName: "でじたる採点くん",
             createdAt: new Date().toISOString(),
             pagesPerStudent: appState.s1.pagesPerStudent,
