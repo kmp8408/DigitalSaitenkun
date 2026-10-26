@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>でじたる採点くん Ver 3.4 安定版</title>
+  <title>でじたる採点くん Ver 3.4.1</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script>
@@ -64,7 +64,7 @@
         <i class="fa-solid fa-pen-ruler text-xs"></i>
       </div>
       <span class="font-bold text-sm tracking-wide text-white">でじたる採点くん</span>
-      <span class="text-[10px] bg-slate-800 text-slate-400 px-2 py-0.5 rounded font-mono">Ver 3.4 安定版</span>
+      <span class="text-[10px] bg-slate-800 text-slate-400 px-2 py-0.5 rounded font-mono">Ver 3.4.1 表示修正版</span>
       <span id="autosave-indicator" class="text-[10px] text-emerald-400 flex items-center space-x-1 ml-2">
         <i class="fa-solid fa-cloud-arrow-up"></i><span>自動保存済</span>
       </span>
@@ -219,7 +219,6 @@
           </div>
         </div>
 
-        <!-- 枠 編集パネル -->
         <div id="s1-selection-panel" class="p-3 border-b border-slate-700 bg-slate-750 hidden">
           <div class="flex justify-between items-center mb-2">
             <span class="font-bold text-indigo-300 flex items-center space-x-1">
@@ -526,28 +525,35 @@
     </div>
   </div>
 
-  <!-- ★ 拡大モーダル（レイアウト確定同期＆非同期ロード保証 安定版） ★ -->
+  <!-- ★ 拡大モーダル（高さ固定＆縦幅消失バグ修正済み） ★ -->
   <div id="zoom-modal" class="fixed inset-0 bg-slate-950/85 backdrop-blur-sm z-50 flex flex-col items-center justify-center p-4 hidden">
-    <div class="relative bg-slate-900 border border-slate-700 rounded-xl p-3 shadow-2xl w-full max-w-5xl max-h-[92vh] flex flex-col items-center">
-      <div class="w-full flex justify-between items-center mb-2 px-2">
+    <!-- 親要素に明確な h-[85vh] を与え、flex-col でレイアウトを担保 -->
+    <div class="relative bg-slate-900 border border-slate-700 rounded-2xl p-4 shadow-2xl w-full max-w-5xl h-[85vh] flex flex-col overflow-hidden">
+      
+      <!-- モーダルヘッダー -->
+      <div class="w-full flex justify-between items-center mb-3 shrink-0">
         <div class="flex items-center space-x-3">
-          <span id="modal-title" class="font-bold text-sm text-indigo-300">出席番号 1番</span>
+          <span id="modal-title" class="font-bold text-base text-indigo-300">出席番号 1番</span>
           <div id="modal-page-tabs" class="flex items-center bg-slate-800 p-0.5 rounded-lg border border-slate-700 space-x-1 text-xs"></div>
         </div>
-        <div class="flex items-center space-x-3 text-xs text-slate-400">
-          <button id="btn-modal-reset-view" class="px-2 py-0.5 bg-slate-800 hover:bg-slate-700 rounded border border-slate-600 text-[11px] text-slate-300 font-semibold transition">
-            <i class="fa-solid fa-arrows-to-dot mr-1"></i>設問にフォーカス
+        <div class="flex items-center space-x-2 text-xs">
+          <button id="btn-modal-reset-view" class="px-3 py-1 bg-slate-800 hover:bg-slate-700 rounded-lg border border-slate-600 text-xs text-slate-200 font-semibold transition flex items-center space-x-1">
+            <i class="fa-solid fa-arrows-to-dot text-indigo-400"></i><span>設問にフォーカス</span>
           </button>
-          <button id="btn-modal-fit-view" class="px-2 py-0.5 bg-slate-800 hover:bg-slate-700 rounded border border-slate-600 text-[11px] text-slate-300 font-semibold transition">
-            <i class="fa-solid fa-expand mr-1"></i>用紙全体
+          <button id="btn-modal-fit-view" class="px-3 py-1 bg-slate-800 hover:bg-slate-700 rounded-lg border border-slate-600 text-xs text-slate-200 font-semibold transition flex items-center space-x-1">
+            <i class="fa-solid fa-expand text-slate-400"></i><span>用紙全体</span>
           </button>
-          <button onclick="closeModal()" class="text-slate-400 hover:text-white p-1 text-lg"><i class="fa-solid fa-xmark"></i></button>
+          <button onclick="closeModal()" class="text-slate-400 hover:text-white p-1 text-xl ml-2"><i class="fa-solid fa-xmark"></i></button>
         </div>
       </div>
-      <div id="modal-viewport" class="flex-1 w-full h-[72vh] overflow-hidden bg-slate-950 rounded border border-slate-700 relative peeking-window cursor-grab">
-        <canvas id="modal-zoom-canvas" class="block absolute top-0 left-0"></canvas>
+
+      <!-- モーダル中央ビューポート（確実に高さを占有） -->
+      <div id="modal-viewport" class="flex-1 w-full bg-slate-950 rounded-xl border border-slate-700 relative overflow-hidden peeking-window cursor-grab">
+        <canvas id="modal-zoom-canvas" class="block w-full h-full"></canvas>
       </div>
-      <div class="w-full flex justify-between items-center text-xs text-slate-400 mt-2 px-2 font-mono">
+
+      <!-- モーダルフッター -->
+      <div class="w-full flex justify-between items-center text-xs text-slate-400 mt-3 px-1 font-mono shrink-0">
         <span>💡 ドラッグで移動 / ホイールで拡大縮小</span>
         <span>Space または Esc で閉じます</span>
       </div>
@@ -1389,7 +1395,7 @@
       let clickedBox = null;
       for (let i = curPageBoxes.length - 1; i >= 0; i--) {
         const b = curPageBoxes[i];
-        if (pt.x >= b.x && pt.x <= b.x + b.w && pt.y >= b.y && pt.y <= b.y + b.h) {
+        if (pt.x >= b.x && pt.x <= b.x + b.w && pt.y >= b.y && pt.y <= b.h + b.y) {
           clickedBox = b;
           break;
         }
@@ -2420,7 +2426,7 @@
       const maxPts = curQ.points;
       const pressedKey = e.key.toLowerCase();
 
-      // ★ Spaceキー拡大
+      // Spaceキー拡大
       if (e.code === 'Space') {
         e.preventDefault();
         openModal();
@@ -2509,9 +2515,9 @@
       renderS2Tiles();
     });
 
-    // ================= ★ 拡大モーダル（レイアウト確定同期＆ロード保証 安定版） ★ =================
+    // ================= ★ 拡大モーダル制御（安定化版） ★ =================
     let modalTransform = { scale: 1, panX: 0, panY: 0, isDragging: false, startX: 0, startY: 0 };
-    let activeModalImage = null; // 現在モーダルで描画中の画像インスタンス
+    let activeModalImage = null;
 
     function openModal() {
       const curQ = appState.s2.questions[appState.s2.currentQIndex];
@@ -2521,15 +2527,14 @@
       modalTitle.textContent = `出席番号 ${student.studentNum}番 (${student.name}) - 設問 ${curQ.name}`;
       appState.s2.modalViewPage = curQ.page || 1;
 
-      // モーダルを表示
       zoomModal.classList.remove('hidden');
       renderModalPageTabs();
 
-      // ★ レイアウト確定後に確実に初期描画を行う
+      // ★ モーダルが展開されて高低差がブラウザ上で確定するのを待って描画
       requestAnimationFrame(() => {
         setTimeout(() => {
           prepareAndRenderModalImage(true);
-        }, 30);
+        }, 50);
       });
     }
 
@@ -2541,8 +2546,8 @@
         const btn = document.createElement('button');
         const isCurrent = p === appState.s2.modalViewPage;
         const pageLabel = p === 1 ? 'P.1 (表)' : (p === 2 ? 'P.2 (裏)' : `P.${p}`);
-        btn.className = `px-2 py-0.5 rounded font-bold transition text-xs ${
-          isCurrent ? 'bg-indigo-600 text-white shadow' : 'text-slate-400 hover:text-white bg-slate-700/50'
+        btn.className = `px-2.5 py-1 rounded-lg font-bold transition text-xs ${
+          isCurrent ? 'bg-indigo-600 text-white shadow' : 'text-slate-400 hover:text-white bg-slate-800'
         }`;
         btn.textContent = pageLabel;
         btn.onclick = () => {
@@ -2554,7 +2559,6 @@
       }
     }
 
-    // 画像のロード完了を確実に保証して描画する
     function prepareAndRenderModalImage(shouldResetFocus = true) {
       const student = appState.s2.students[appState.s2.activeStudentIndex];
       if (!student) return;
@@ -2562,7 +2566,6 @@
       const pageIndex = appState.s2.modalViewPage - 1;
       let img = student.fullPageImgElements && student.fullPageImgElements[pageIndex];
 
-      // もし既存のImageエレメントがない、またはsrcが未設定の場合はDataURLから再生成
       if (!img || !img.src) {
         const dataUrl = student.fullPageImages && student.fullPageImages[pageIndex];
         if (!dataUrl) return;
@@ -2574,12 +2577,10 @@
 
       activeModalImage = img;
 
-      // ロードが完了している場合
       if (img.complete && img.naturalWidth > 0) {
         if (shouldResetFocus) resetModalViewToQuestion();
         else renderModalZoomCanvas();
       } else {
-        // ロード中の場合はonloadハンドラで確実に描画をトリガー
         img.onload = () => {
           if (shouldResetFocus) resetModalViewToQuestion();
           else renderModalZoomCanvas();
@@ -2603,9 +2604,8 @@
       const qPixelW = Math.max(50, norm.w * imgW);
       const qPixelH = Math.max(50, norm.h * imgH);
 
-      // 設問が画面の約70%程度になるよう自動スケーリング
-      const targetScale = Math.min((vw * 0.72) / qPixelW, (vh * 0.72) / qPixelH, 2.5);
-      modalTransform.scale = Math.max(0.3, Math.min(3.0, targetScale));
+      const targetScale = Math.min((vw * 0.75) / qPixelW, (vh * 0.75) / qPixelH, 2.8);
+      modalTransform.scale = Math.max(0.2, Math.min(3.5, targetScale));
 
       const qCenterX = (norm.x + norm.w / 2) * imgW;
       const qCenterY = (norm.y + norm.h / 2) * imgH;
@@ -2625,8 +2625,8 @@
       const imgW = img.naturalWidth;
       const imgH = img.naturalHeight;
 
-      const scaleX = (vw - 32) / imgW;
-      const scaleY = (vh - 32) / imgH;
+      const scaleX = (vw - 40) / imgW;
+      const scaleY = (vh - 40) / imgH;
       modalTransform.scale = Math.min(scaleX, scaleY, 1.0);
       modalTransform.panX = Math.round((vw - imgW * modalTransform.scale) / 2);
       modalTransform.panY = Math.round((vh - imgH * modalTransform.scale) / 2);
@@ -2653,7 +2653,7 @@
       modalZoomCtx.translate(modalTransform.panX, modalTransform.panY);
       modalZoomCtx.scale(modalTransform.scale, modalTransform.scale);
 
-      // 用紙本体の描画（背面に白地と影を付与）
+      // 用紙本体の描画
       modalZoomCtx.fillStyle = '#ffffff';
       modalZoomCtx.fillRect(0, 0, img.naturalWidth, img.naturalHeight);
       modalZoomCtx.drawImage(img, 0, 0);
@@ -2670,14 +2670,14 @@
         modalZoomCtx.lineWidth = Math.max(3, Math.round(4 / modalTransform.scale));
         modalZoomCtx.strokeRect(qx, qy, qw, qh);
 
-        modalZoomCtx.fillStyle = 'rgba(99, 102, 241, 0.12)';
+        modalZoomCtx.fillStyle = 'rgba(99, 102, 241, 0.14)';
         modalZoomCtx.fillRect(qx, qy, qw, qh);
 
         // ラベルタグ描画
         modalZoomCtx.fillStyle = '#6366f1';
-        const fontSize = Math.max(16, Math.round(20 / modalTransform.scale));
+        const fontSize = Math.max(16, Math.round(22 / modalTransform.scale));
         modalZoomCtx.font = `bold ${fontSize}px sans-serif`;
-        modalZoomCtx.fillText(`設問: ${curQ.name} (${curQ.points}点)`, qx, Math.max(25, qy - 8));
+        modalZoomCtx.fillText(`設問: ${curQ.name} (${curQ.points}点)`, qx, Math.max(25, qy - 10));
       }
 
       modalZoomCtx.restore();
@@ -3165,11 +3165,8 @@
           a.download = `marking_template_${new Date().toISOString().slice(0, 10)}.json`;
           a.click();
           URL.revokeObjectURL(url);
-        } catch (err) {
-          alert('JSON出力エラー: ' + err.message);
-        } finally {
-          hideLoading();
-        }
+        } catch (err) { alert('JSON出力エラー: ' + err.message); }
+        finally { hideLoading(); }
       }, 50);
     };
 
