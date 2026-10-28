@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>でじたる採点くん Ver 3.6</title>
+  <title>でじたる採点くん Ver 3.7</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script>
@@ -64,27 +64,42 @@
         <i class="fa-solid fa-pen-ruler text-xs"></i>
       </div>
       <span class="font-bold text-sm tracking-wide text-white">でじたる採点くん</span>
-      <span class="text-[10px] bg-slate-800 text-slate-400 px-2 py-0.5 rounded font-mono">Ver 3.6 認証・ログ統合版</span>
+      <span class="text-[10px] bg-slate-800 text-slate-400 px-2 py-0.5 rounded font-mono">Ver 3.7</span>
       <span id="autosave-indicator" class="text-[10px] text-emerald-400 flex items-center space-x-1 ml-2">
         <i class="fa-solid fa-cloud-arrow-up"></i><span>自動保存済</span>
       </span>
     </div>
 
-    <!-- ステップ切り替えタブ -->
-    <div class="flex items-center bg-slate-900 p-1 rounded-xl border border-slate-800 space-x-1">
-      <button id="tab-step1-btn" class="px-4 py-1 rounded-lg text-xs font-bold transition flex items-center space-x-2 bg-indigo-600 text-white shadow">
-        <span class="w-4 h-4 rounded-full bg-white/20 flex items-center justify-center text-[10px]">1</span>
-        <span>模範解答・枠設定</span>
-      </button>
-      <button id="tab-step2-btn" class="px-4 py-1 rounded-lg text-xs font-bold transition flex items-center space-x-2 text-slate-400 hover:text-slate-200">
-        <span class="w-4 h-4 rounded-full bg-slate-800 flex items-center justify-center text-[10px]">2</span>
-        <span>串刺し採点 ＆ 返却PDF</span>
-      </button>
+    <!-- 中央：ステップ切り替えタブ ＆ モード切替スイッチ -->
+    <div class="flex items-center space-x-3">
+      <!-- 簡易 / 通常 モード切替スイッチ -->
+      <div class="flex items-center bg-slate-900 px-2 py-0.5 rounded-xl border border-slate-800 space-x-1.5 text-xs">
+        <span class="text-[10px] font-bold text-slate-400"><i class="fa-solid fa-sliders mr-1 text-slate-500"></i>表示:</span>
+        <div class="flex items-center bg-slate-800 p-0.5 rounded-lg border border-slate-700">
+          <button id="btn-mode-simple" class="px-2.5 py-0.5 rounded text-[11px] font-bold transition bg-indigo-600 text-white shadow" title="必要最低限の機能に絞った初心者向けモード">
+            簡易モード
+          </button>
+          <button id="btn-mode-normal" class="px-2.5 py-0.5 rounded text-[11px] font-bold transition text-slate-400 hover:text-slate-200" title="観点別評価やダブル採点を含む全機能モード">
+            通常モード
+          </button>
+        </div>
+      </div>
+
+      <!-- ステップ切り替えタブ -->
+      <div class="flex items-center bg-slate-900 p-1 rounded-xl border border-slate-800 space-x-1">
+        <button id="tab-step1-btn" class="px-4 py-1 rounded-lg text-xs font-bold transition flex items-center space-x-2 bg-indigo-600 text-white shadow">
+          <span class="w-4 h-4 rounded-full bg-white/20 flex items-center justify-center text-[10px]">1</span>
+          <span>模範解答・枠設定</span>
+        </button>
+        <button id="tab-step2-btn" class="px-4 py-1 rounded-lg text-xs font-bold transition flex items-center space-x-2 text-slate-400 hover:text-slate-200">
+          <span class="w-4 h-4 rounded-full bg-slate-800 flex items-center justify-center text-[10px]">2</span>
+          <span>串刺し採点 ＆ 返却PDF</span>
+        </button>
+      </div>
     </div>
 
     <!-- 共有ユーティリティ ＆ サインインユーザー表示 -->
     <div class="flex items-center space-x-2 text-xs">
-      <!-- ログイン中教員表示 -->
       <div class="flex items-center space-x-1.5 bg-slate-900 px-2.5 py-1 rounded border border-slate-800">
         <i class="fa-solid fa-user-check text-emerald-400 text-xs"></i>
         <span id="current-user-display" class="font-bold text-slate-200">未サインイン</span>
@@ -136,15 +151,18 @@
           <button data-cat="total_score" class="draw-cat-btn px-2 py-0.5 rounded hover:bg-slate-700 text-rose-400 font-bold flex items-center space-x-1 transition shrink-0">
             <i class="fa-solid fa-calculator text-[10px]"></i><span>合計点</span>
           </button>
-          <button data-cat="aspect_k_score" class="draw-cat-btn px-2 py-0.5 rounded hover:bg-slate-700 text-sky-400 font-bold flex items-center space-x-1 transition shrink-0">
+
+          <!-- 通常モード専用の枠ツール -->
+          <button data-cat="aspect_k_score" class="draw-cat-btn normal-mode-only px-2 py-0.5 rounded hover:bg-slate-700 text-sky-400 font-bold flex items-center space-x-1 transition shrink-0 hidden">
             <i class="fa-solid fa-book text-[10px]"></i><span>知計</span>
           </button>
-          <button data-cat="aspect_t_score" class="draw-cat-btn px-2 py-0.5 rounded hover:bg-slate-700 text-purple-400 font-bold flex items-center space-x-1 transition shrink-0">
+          <button data-cat="aspect_t_score" class="draw-cat-btn normal-mode-only px-2 py-0.5 rounded hover:bg-slate-700 text-purple-400 font-bold flex items-center space-x-1 transition shrink-0 hidden">
             <i class="fa-solid fa-brain text-[10px]"></i><span>思計</span>
           </button>
-          <button data-cat="other" class="draw-cat-btn px-2 py-0.5 rounded hover:bg-slate-700 text-slate-400 font-bold flex items-center space-x-1 transition shrink-0">
+          <button data-cat="other" class="draw-cat-btn normal-mode-only px-2 py-0.5 rounded hover:bg-slate-700 text-slate-400 font-bold flex items-center space-x-1 transition shrink-0 hidden">
             <i class="fa-solid fa-shapes text-[10px]"></i><span>他</span>
           </button>
+
           <div class="w-px h-4 bg-slate-700 mx-1 shrink-0"></div>
           <button id="s1-tool-pan-btn" class="px-2 py-0.5 rounded hover:bg-slate-700 text-slate-300 font-medium flex items-center space-x-1 transition shrink-0">
             <i class="fa-solid fa-hand text-[10px]"></i><span>移動</span>
@@ -219,17 +237,19 @@
               <span class="font-bold text-sm text-white">登録枠一覧</span>
               <span id="s1-box-count" class="px-2 py-0.5 bg-indigo-900 text-indigo-300 font-mono rounded-full font-bold">0</span>
             </div>
-            <div class="flex items-center space-x-1.5 bg-slate-900/80 px-2 py-1 rounded-full border border-slate-700">
+
+            <!-- 観点評価スイッチ（通常モードのみ表示） -->
+            <div id="s1-aspect-switch-container" class="normal-mode-only items-center space-x-1.5 bg-slate-900/80 px-2 py-1 rounded-full border border-slate-700 hidden">
               <span class="text-[10px] text-slate-400 font-medium">観点評価</span>
               <label class="relative inline-flex items-center cursor-pointer">
-                <input type="checkbox" id="s1-aspect-switch" class="sr-only peer" checked>
+                <input type="checkbox" id="s1-aspect-switch" class="sr-only peer">
                 <div class="w-7 h-4 bg-slate-600 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-3 after:w-3 after:transition-all peer-checked:bg-indigo-600"></div>
               </label>
             </div>
           </div>
           <div class="flex justify-between items-center pt-1 border-t border-slate-700/60 font-mono">
             <div class="text-slate-300">合計点: <span id="s1-total-points" class="text-amber-400 font-bold text-sm">0</span> 点</div>
-            <div id="s1-aspect-summary-container" class="flex items-center space-x-2 text-[11px]">
+            <div id="s1-aspect-summary-container" class="normal-mode-only items-center space-x-2 text-[11px] hidden">
               <div><span class="text-sky-400 font-bold">知:</span> <span id="s1-knowledge-points" class="font-bold text-white">0</span></div>
               <div><span class="text-purple-400 font-bold">思:</span> <span id="s1-thinking-points" class="font-bold text-white">0</span></div>
             </div>
@@ -258,9 +278,10 @@
                 <button data-cat="student_num" class="py-1 rounded border border-amber-600/60 bg-amber-600/20 text-amber-300">番号</button>
                 <button data-cat="student_name" class="py-1 rounded border border-teal-600/60 bg-teal-600/20 text-teal-300">氏名</button>
                 <button data-cat="total_score" class="py-1 rounded border border-rose-600/60 bg-rose-600/20 text-rose-300">合計点</button>
-                <button data-cat="aspect_k_score" class="py-1 rounded border border-sky-600/60 bg-sky-600/20 text-sky-300">知計</button>
-                <button data-cat="aspect_t_score" class="py-1 rounded border border-purple-600/60 bg-purple-600/20 text-purple-300">思計</button>
-                <button data-cat="other" class="py-1 rounded border border-slate-600 bg-slate-700 text-slate-300 col-span-2">その他</button>
+                <!-- 通常モード専用の枠変更ボタン -->
+                <button data-cat="aspect_k_score" class="normal-mode-only py-1 rounded border border-sky-600/60 bg-sky-600/20 text-sky-300 hidden">知計</button>
+                <button data-cat="aspect_t_score" class="normal-mode-only py-1 rounded border border-purple-600/60 bg-purple-600/20 text-purple-300 hidden">思計</button>
+                <button data-cat="other" class="normal-mode-only py-1 rounded border border-slate-600 bg-slate-700 text-slate-300 col-span-2 hidden">その他</button>
               </div>
             </div>
             <div class="grid grid-cols-2 gap-2">
@@ -277,7 +298,8 @@
               <label class="block text-slate-400 text-[10px] mb-0.5">採点基準メモ</label>
               <textarea id="s1-prop-rubric" rows="2" class="w-full bg-slate-900 border border-slate-600 rounded p-1.5 text-white text-[11px] focus:border-indigo-500 outline-none resize-none"></textarea>
             </div>
-            <div id="s1-aspect-field-container">
+            <!-- 通常モード専用の観点設定 -->
+            <div id="s1-aspect-field-container" class="normal-mode-only hidden">
               <label class="block text-slate-400 text-[10px] mb-0.5">観点別評価</label>
               <div class="grid grid-cols-2 gap-1.5">
                 <button id="s1-btn-aspect-knowledge" class="py-1 px-2 rounded border border-sky-500 bg-sky-600/30 text-sky-200 font-semibold text-center transition">
@@ -334,8 +356,8 @@
         <div id="s2-q-meta-badges" class="flex items-center space-x-1 text-xs"></div>
       </div>
 
-      <!-- 中央：ダブル採点切替 -->
-      <div class="flex items-center space-x-2 bg-slate-900/80 px-2.5 py-0.5 rounded-lg border border-slate-700">
+      <!-- 中央：ダブル採点 ＆ 系統切替（通常モード専用） -->
+      <div id="s2-double-stream-container" class="normal-mode-only items-center space-x-2 bg-slate-900/80 px-2.5 py-0.5 rounded-lg border border-slate-700 hidden">
         <div class="flex items-center space-x-1.5 pr-2 border-r border-slate-700">
           <span class="text-[11px] text-slate-300 font-bold">ダブル採点</span>
           <label class="relative inline-flex items-center cursor-pointer">
@@ -366,7 +388,7 @@
         </button>
         <div class="flex flex-col items-end px-1.5 border-l border-slate-700">
           <div class="flex items-center space-x-1 text-[10px] font-mono">
-            <span id="s2-stream-label-progress" class="text-indigo-400 font-bold">系統1:</span>
+            <span id="s2-stream-label-progress" class="text-indigo-400 font-bold">進捗:</span>
             <span id="s2-progress-text" class="font-bold text-emerald-400">0/0</span>
           </div>
           <div class="w-16 h-1.5 bg-slate-700 rounded-full overflow-hidden mt-0.5">
@@ -447,9 +469,10 @@
     <div class="h-8 bg-slate-850 border-b border-slate-700 flex items-center justify-between px-4 text-xs shrink-0">
       <div class="flex items-center space-x-3 text-[11px]">
         <div><span class="text-slate-400">設問: </span><span id="s2-current-q-name" class="font-bold text-indigo-300 font-mono">-</span></div>
-        <span class="text-slate-600">|</span>
-        <div><span class="text-slate-400">採点系統: </span><span id="s2-current-stream-badge" class="font-bold text-indigo-400 font-mono">系統1 (A)</span></div>
-        <span class="text-slate-600">|</span>
+        <div id="s2-current-stream-container" class="normal-mode-only flex items-center space-x-3 hidden">
+          <span class="text-slate-600">|</span>
+          <div><span class="text-slate-400">採点系統: </span><span id="s2-current-stream-badge" class="font-bold text-indigo-400 font-mono">系統1 (A)</span></div>
+        </div>
         <div id="s2-mismatch-counter-box" class="hidden flex items-center space-x-1 text-rose-400 font-bold bg-rose-950/40 px-2 py-0.5 rounded border border-rose-800/60">
           <i class="fa-solid fa-triangle-exclamation text-xs"></i><span>系統不一致: <span id="s2-mismatch-count">0</span> 件</span>
         </div>
@@ -460,7 +483,7 @@
           <option value="all">全員分表示</option>
           <option value="unmarked">未採点のみ</option>
           <option value="marked">採点済みのみ</option>
-          <option value="mismatch">系統不一致のみ</option>
+          <option value="mismatch" class="normal-mode-only hidden">系統不一致のみ</option>
         </select>
       </div>
     </div>
@@ -592,7 +615,7 @@
     <p id="loading-subtitle" class="text-xs text-slate-400 font-mono">しばらくお待ちください</p>
   </div>
 
-  <!-- ================= Googleスプレッドシート連携 サインインモーダル ================= -->
+  <!-- ================= サインインモーダル ================= -->
   <div id="signin-modal" class="fixed inset-0 bg-slate-950/95 backdrop-blur-md z-50 flex items-center justify-center p-4">
     <div class="bg-slate-900 border border-slate-700 rounded-2xl shadow-2xl w-full max-w-md overflow-hidden">
       <div class="p-6 bg-slate-800/60 border-b border-slate-700 text-center">
@@ -608,7 +631,7 @@
 
         <div>
           <label class="block text-slate-400 font-bold mb-1">ユーザーID</label>
-          <input type="text" id="signin-userid" required autocomplete="username" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-white font-mono text-sm focus:border-indigo-500 outline-none" placeholder="例: mori または machi">
+          <input type="text" id="signin-userid" required autocomplete="username" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-white font-mono text-sm focus:border-indigo-500 outline-none" placeholder="ユーザーIDを入力">
         </div>
 
         <div>
@@ -624,9 +647,9 @@
         <!-- 管理用：連携URL設定（折りたたみ） -->
         <div class="pt-2 border-t border-slate-800">
           <details class="text-[11px] text-slate-500">
-            <summary class="cursor-pointer hover:text-slate-400">⚙️ 連携GASエンドポイント設定</summary>
+            <summary class="cursor-pointer hover:text-slate-400">⚙️ サーバー接続設定</summary>
             <div class="mt-2 space-y-1">
-              <label class="block text-slate-400 text-[10px]">GAS Web App URL:</label>
+              <label class="block text-slate-400 text-[10px]">API Endpoint URL:</label>
               <input type="text" id="setting-gas-url" class="w-full bg-slate-950 border border-slate-700 rounded p-1.5 text-slate-300 font-mono text-[10px] outline-none" placeholder="https://script.google.com/macros/s/.../exec">
             </div>
           </details>
@@ -672,7 +695,7 @@
 
       const gasUrl = getGasUrl();
       if (!gasUrl) {
-        showSigninError("GASのWeb App URLが未設定です。");
+        showSigninError("APIエンドポイントURLが未設定です。");
         return;
       }
 
@@ -680,7 +703,7 @@
       const password = document.getElementById('signin-password').value;
 
       btnSubmitSignin.disabled = true;
-      btnSubmitSignin.innerHTML = '<i class="fa-solid fa-spinner animate-spin"></i><span>スプレッドシート照合中...</span>';
+      btnSubmitSignin.innerHTML = '<i class="fa-solid fa-spinner animate-spin"></i><span>ID確認中...</span>';
 
       try {
         const response = await fetch(gasUrl, {
@@ -713,7 +736,7 @@
 
       } catch (err) {
         console.error("認証通信エラー:", err);
-        showSigninError("スプレッドシート連携APIへの接続に失敗しました。URLまたはネットワーク環境をご確認ください。");
+        showSigninError("認証サーバーへの接続に失敗しました。ネットワーク環境をご確認ください。");
       } finally {
         btnSubmitSignin.disabled = false;
         btnSubmitSignin.innerHTML = '<i class="fa-solid fa-right-to-bracket"></i><span>サインインして開始</span>';
@@ -753,7 +776,77 @@
       signinModal.classList.remove('hidden');
     }
 
-    // ================= 2. ユーティリティ・採点エンジン =================
+    // ================= 2. モード切替制御（簡易モード / 通常モード） =================
+    // デフォルトを 'simple'（簡易モード）に設定
+    let currentUiMode = localStorage.getItem('d_saiten_ui_mode') || 'simple';
+
+    const btnModeSimple = document.getElementById('btn-mode-simple');
+    const btnModeNormal = document.getElementById('btn-mode-normal');
+    const s1AspectSwitchContainer = document.getElementById('s1-aspect-switch-container');
+    const s1AspectSummaryContainer = document.getElementById('s1-aspect-summary-container');
+    const s1AspectFieldContainer = document.getElementById('s1-aspect-field-container');
+    const s2DoubleStreamContainer = document.getElementById('s2-double-stream-container');
+    const s2CurrentStreamContainer = document.getElementById('s2-current-stream-container');
+
+    function applyUiMode(mode) {
+      currentUiMode = mode;
+      localStorage.setItem('d_saiten_ui_mode', mode);
+
+      const isNormal = (mode === 'normal');
+
+      if (isNormal) {
+        btnModeNormal.className = 'px-2.5 py-0.5 rounded text-[11px] font-bold transition bg-indigo-600 text-white shadow';
+        btnModeSimple.className = 'px-2.5 py-0.5 rounded text-[11px] font-bold transition text-slate-400 hover:text-slate-200';
+      } else {
+        btnModeSimple.className = 'px-2.5 py-0.5 rounded text-[11px] font-bold transition bg-indigo-600 text-white shadow';
+        btnModeNormal.className = 'px-2.5 py-0.5 rounded text-[11px] font-bold transition text-slate-400 hover:text-slate-200';
+      }
+
+      // 通常モード専用要素の表示・非表示切替
+      document.querySelectorAll('.normal-mode-only').forEach(el => {
+        if (isNormal) {
+          el.classList.remove('hidden');
+          // flex を持つコンテナを正しく表示
+          if (el.id === 's1-aspect-switch-container' || el.id === 's1-aspect-summary-container' || 
+              el.id === 's2-double-stream-container' || el.id === 's2-current-stream-container') {
+            el.classList.add('flex');
+          }
+        } else {
+          el.classList.add('hidden');
+          el.classList.remove('flex');
+        }
+      });
+
+      // 簡易モード時の制御
+      if (!isNormal) {
+        // 観点評価を強制OFF
+        appState.s1.enableAspect = false;
+        s1AspectSwitch.checked = false;
+
+        // ダブル採点を強制OFF、系統1に固定
+        appState.s2.isDoubleMode = false;
+        s2DoubleModeToggle.checked = false;
+        setS2Stream(1);
+
+        // 絞り込みオプションがmismatchになっていれば全員表示に戻す
+        if (appState.s2.filter === 'mismatch') {
+          appState.s2.filter = 'all';
+          document.getElementById('s2-filter-status').value = 'all';
+        }
+      }
+
+      s1RenderBoxes();
+      s1UpdateSidebar();
+      if (appState.currentStep === 2) {
+        renderS2Tiles();
+        updateS2Progress();
+      }
+    }
+
+    btnModeSimple.addEventListener('click', () => applyUiMode('simple'));
+    btnModeNormal.addEventListener('click', () => applyUiMode('normal'));
+
+    // ================= 3. ユーティリティ・採点エンジン =================
     function incrementQuestionName(name) {
       const parenMatch = name.match(/^(.*[\(（])(\d+)([\)）].*)$/);
       if (parenMatch) return `${parenMatch[1]}${parseInt(parenMatch[2], 10) + 1}${parenMatch[3]}`;
@@ -768,7 +861,6 @@
       return `${name}_copy`;
     }
 
-    // グローバル状態管理
     const appState = {
       currentStep: 1,
       customKeys: {
@@ -781,7 +873,7 @@
       s1: {
         pagesPerStudent: 1,
         currentPage: 1,
-        pages: [],               // [{ pageNum, canvas, dataUrl, width, height }]
+        pages: [],
         scale: 1,
         panX: 0,
         panY: 0,
@@ -790,15 +882,15 @@
         mode: 'box',
         currentCategory: 'question',
         isSpaceDown: false,
-        isShiftDown: false,      // Shiftキー押下状態
-        enableAspect: true,
-        boxes: [],               // 登録枠配列
+        isShiftDown: false,
+        enableAspect: false,    // デフォルトOFF
+        boxes: [],
         selectedIds: [],
         interactionMode: null,
         dragStartPt: { x: 0, y: 0 },
         boxOrigStates: new Map(),
         tempBox: null,
-        autoHoverBox: null,      // 自動吸着のプレビュー枠
+        autoHoverBox: null,
         draggedBoxId: null
       },
       s2: {
@@ -900,7 +992,7 @@
     }
     function hideLoading() { loadingOverlay.classList.add('hidden'); }
 
-    // ================= 3. キーバインド・カスタマイズ制御 =================
+    // ================= 4. キーバインド・カスタマイズ制御 =================
     function formatKeyDisplay(keyStr) {
       if (!keyStr) return '';
       if (keyStr === ' ') return 'SPACE';
@@ -961,7 +1053,7 @@
       }
     }, true);
 
-    // ================= 4. IndexedDB 自動保存 ＆ 復元 =================
+    // ================= 5. IndexedDB 自動保存 ＆ 復元 =================
     const DB_NAME = 'DejitaruSaitenDB_v3';
     const DB_VERSION = 1;
     let dbInstance = null;
@@ -1057,7 +1149,7 @@
       if (data.s1) {
         appState.s1.pagesPerStudent = data.s1.pagesPerStudent || 1;
         appState.s1.boxes = data.s1.boxes || [];
-        appState.s1.enableAspect = data.s1.enableAspect !== undefined ? data.s1.enableAspect : true;
+        appState.s1.enableAspect = currentUiMode === 'normal' ? (data.s1.enableAspect !== undefined ? data.s1.enableAspect : false) : false;
 
         if (data.s1.pages && data.s1.pages.length > 0) {
           appState.s1.pages = data.s1.pages.map(p => {
@@ -1080,7 +1172,7 @@
         appState.s2.pagesPerStudent = data.s2.pagesPerStudent || appState.s1.pagesPerStudent;
         appState.s2.questions = data.s2.questions || [];
         appState.s2.metaBoxes = data.s2.metaBoxes || [];
-        appState.s2.isDoubleMode = !!data.s2.isDoubleMode;
+        appState.s2.isDoubleMode = currentUiMode === 'normal' ? !!data.s2.isDoubleMode : false;
         s2DoubleModeToggle.checked = appState.s2.isDoubleMode;
 
         if (data.s2.studentsSummary && data.s2.studentsSummary.length > 0) {
@@ -1110,7 +1202,7 @@
       }
     });
 
-    // ================= 5. タブ切り替え =================
+    // ================= 6. タブ切り替え =================
     function switchTab(step) {
       appState.currentStep = step;
       if (step === 1) {
@@ -1190,7 +1282,7 @@
       triggerAutoSave();
     }
 
-    // ================= 6. 90度回転補正システム =================
+    // ================= 7. 90度回転補正システム =================
     function openRotationModal(title, sourceCanvases, onConfirmCallback) {
       appState.rotation.angle = 0;
       appState.rotation.tempCanvases = sourceCanvases;
@@ -1292,7 +1384,7 @@
       }
     });
 
-    // ================= 7. STEP 1: 枠設定エディタ =================
+    // ================= 8. STEP 1: 枠設定エディタ =================
     function s1ApplyTransform() {
       s1Wrapper.style.transform = `matrix(${appState.s1.scale}, 0, 0, ${appState.s1.scale}, ${appState.s1.panX}, ${appState.s1.panY})`;
       s1ZoomText.textContent = `${Math.round(appState.s1.scale * 100)}%`;
@@ -1493,16 +1585,16 @@
       appState.s1.mode = 'box';
       appState.s1.currentCategory = cat;
       document.querySelectorAll('.draw-cat-btn').forEach(b => {
-        b.className = 'draw-cat-btn px-2 py-0.5 rounded hover:bg-slate-700 font-bold flex items-center space-x-1 transition shrink-0 ' +
-          (b.dataset.cat === 'question' ? 'text-indigo-300' :
-           b.dataset.cat === 'student_num' ? 'text-amber-400' :
-           b.dataset.cat === 'student_name' ? 'text-teal-400' :
-           b.dataset.cat === 'total_score' ? 'text-rose-400' :
-           b.dataset.cat === 'aspect_k_score' ? 'text-sky-400' :
-           b.dataset.cat === 'aspect_t_score' ? 'text-purple-400' : 'text-slate-400');
+        b.className = b.className.replace(/bg-indigo-600 text-white shadow/, 'hover:bg-slate-700') +
+          (b.dataset.cat === 'question' ? ' text-indigo-300' :
+           b.dataset.cat === 'student_num' ? ' text-amber-400' :
+           b.dataset.cat === 'student_name' ? ' text-teal-400' :
+           b.dataset.cat === 'total_score' ? ' text-rose-400' :
+           b.dataset.cat === 'aspect_k_score' ? ' text-sky-400' :
+           b.dataset.cat === 'aspect_t_score' ? ' text-purple-400' : ' text-slate-400');
       });
       const activeBtn = document.querySelector(`.draw-cat-btn[data-cat="${cat}"]`);
-      if (activeBtn) activeBtn.className = 'draw-cat-btn px-2 py-0.5 rounded font-bold flex items-center space-x-1 transition shrink-0 bg-indigo-600 text-white shadow';
+      if (activeBtn) activeBtn.className = activeBtn.className.replace(/text-[\w-]+/, '') + ' bg-indigo-600 text-white shadow';
       document.getElementById('s1-tool-pan-btn').className = 'px-2 py-0.5 rounded hover:bg-slate-700 text-slate-300 font-medium flex items-center space-x-1 transition shrink-0';
       s1Viewport.classList.remove('panning');
     }
@@ -1514,7 +1606,7 @@
     document.getElementById('s1-tool-pan-btn').addEventListener('click', () => {
       appState.s1.mode = 'pan';
       document.querySelectorAll('.draw-cat-btn').forEach(b => {
-        b.className = 'draw-cat-btn px-2 py-0.5 rounded hover:bg-slate-700 font-bold flex items-center space-x-1 transition shrink-0 text-slate-400';
+        b.className = b.className.replace(/bg-indigo-600 text-white shadow/, 'hover:bg-slate-700 text-slate-400');
       });
       document.getElementById('s1-tool-pan-btn').className = 'px-2 py-0.5 rounded font-bold flex items-center space-x-1 transition shrink-0 bg-indigo-600 text-white shadow';
       s1Viewport.classList.add('panning');
@@ -1533,7 +1625,7 @@
       }
     }
 
-    // ================= 8. 高度な解答枠自動検出（フラッドフィル＋1pxモルフォロジー膨張） =================
+    // ================= 9. 高度な解答枠自動検出 =================
     function detectBoxAtPoint(startX, startY) {
       const pageInfo = appState.s1.pages.find(p => p.pageNum === appState.s1.currentPage);
       if (!pageInfo || !pageInfo.canvas) return null;
@@ -1715,7 +1807,6 @@
         return;
       }
 
-      // Shift ＋ クリックで自動黒枠作成
       if (e.shiftKey) {
         const autoBox = appState.s1.autoHoverBox || detectBoxAtPoint(pt.x, pt.y);
         if (autoBox) {
@@ -1753,7 +1844,6 @@
         }
       }
 
-      // 通常の手動ドラッグ枠作成
       if (!isMultiKey) appState.s1.selectedIds = [];
       appState.s1.interactionMode = 'drawing';
       appState.s1.dragStartPt = pt;
@@ -1773,7 +1863,6 @@
 
       const pt = s1ScreenToImageCoords(e.clientX, e.clientY);
 
-      // Shiftキー押下中の自動吸着ホバープレビュー
       if (e.shiftKey && !appState.s1.interactionMode && appState.s1.pages.length > 0) {
         const curPageBoxes = appState.s1.boxes.filter(b => (b.page || 1) === appState.s1.currentPage);
         const onExisting = curPageBoxes.some(b => pt.x >= b.x && pt.x <= b.x + b.w && pt.y >= b.y && pt.y <= b.y + b.h);
@@ -2085,7 +2174,13 @@
           const isQuestion = sel.category === 'question';
           document.getElementById('s1-points-container').style.display = isQuestion ? 'block' : 'none';
           document.getElementById('s1-rubric-container').style.display = isQuestion ? 'block' : 'none';
-          document.getElementById('s1-aspect-field-container').style.display = (isQuestion && appState.s1.enableAspect) ? 'block' : 'none';
+
+          // 通常モード時のみ観点別評価ボタンを表示
+          if (currentUiMode === 'normal') {
+            s1AspectFieldContainer.style.display = (isQuestion && appState.s1.enableAspect) ? 'block' : 'none';
+          } else {
+            s1AspectFieldContainer.style.display = 'none';
+          }
 
           if (isQuestion) {
             const btnK = document.getElementById('s1-btn-aspect-knowledge');
@@ -2195,7 +2290,7 @@
 
         let badgeHtml = '';
         if (box.category === 'question') {
-          badgeHtml = appState.s1.enableAspect 
+          badgeHtml = (currentUiMode === 'normal' && appState.s1.enableAspect)
             ? (box.aspect === 'thinking' ? '<span class="text-[9px] bg-purple-900/60 text-purple-300 px-1 py-0.2 rounded font-mono">思考</span>'
                                          : '<span class="text-[9px] bg-sky-900/60 text-sky-300 px-1 py-0.2 rounded font-mono">知識</span>')
             : '';
@@ -2408,7 +2503,7 @@
 
     s1AspectSwitch.addEventListener('change', (e) => {
       appState.s1.enableAspect = e.target.checked;
-      if (appState.s1.enableAspect) s1AspectSummary.classList.remove('hidden');
+      if (appState.s1.enableAspect && currentUiMode === 'normal') s1AspectSummary.classList.remove('hidden');
       else s1AspectSummary.classList.add('hidden');
       s1RenderBoxes();
       s1UpdateSidebar();
@@ -2465,7 +2560,7 @@
       reader.readAsArrayBuffer(file);
     });
 
-    // ================= 9. STEP 2: 串刺し採点ワークスペース =================
+    // ================= 10. STEP 2: 串刺し採点ワークスペース =================
     function initS2QuestionSelect() {
       s2QSelect.innerHTML = '';
       appState.s2.questions.forEach((q, idx) => {
@@ -2500,9 +2595,11 @@
         s2ModelAnsContainer.innerHTML = '<span class="text-slate-400 text-xs">模範画像なし</span>';
       }
 
-      const aspectBadge = q.aspect === 'thinking'
-        ? '<span class="bg-purple-900/80 text-purple-200 border border-purple-500 px-2 py-0.5 rounded font-bold">思考・判断</span>'
-        : '<span class="bg-sky-900/80 text-sky-200 border border-sky-500 px-2 py-0.5 rounded font-bold">知識・技能</span>';
+      const aspectBadge = (currentUiMode === 'normal' && appState.s1.enableAspect)
+        ? (q.aspect === 'thinking'
+            ? '<span class="bg-purple-900/80 text-purple-200 border border-purple-500 px-2 py-0.5 rounded font-bold">思考・判断</span>'
+            : '<span class="bg-sky-900/80 text-sky-200 border border-sky-500 px-2 py-0.5 rounded font-bold">知識・技能</span>')
+        : '';
 
       const pageBadge = `<span class="bg-slate-700 text-indigo-300 font-mono font-bold px-2 py-0.5 rounded border border-slate-600">P.${q.page || 1}</span>`;
 
@@ -2547,7 +2644,7 @@
         s2BtnStream2.className = 'px-2.5 py-1 rounded font-bold text-xs bg-slate-800 hover:bg-slate-700 text-slate-400 border border-slate-700 transition flex items-center space-x-1';
         s2CurrentStreamBadge.textContent = '系統1 (A)';
         s2CurrentStreamBadge.className = 'font-bold text-indigo-400 font-mono';
-        s2StreamLabelProgress.textContent = '系統1:';
+        s2StreamLabelProgress.textContent = currentUiMode === 'normal' ? '系統1:' : '進捗:';
         s2StreamLabelProgress.className = 'text-indigo-400 font-bold';
       } else {
         s2BtnStream2.className = 'px-2.5 py-1 rounded font-bold text-xs bg-purple-600 text-white shadow transition flex items-center space-x-1';
@@ -2564,7 +2661,7 @@
     s2BtnStream1.addEventListener('click', () => setS2Stream(1));
     s2BtnStream2.addEventListener('click', () => setS2Stream(2));
 
-    // ================= 10. 採点タイル描画 ＆ ホバー氏名ツールチップ =================
+    // ================= 11. 採点タイル描画 ＆ ホバー氏名ツールチップ =================
     function renderS2Tiles() {
       if (appState.s2.students.length === 0) {
         s2EmptyWorkspace.classList.remove('hidden');
@@ -2586,7 +2683,7 @@
         const s2 = std.scores2[curQ.id];
         const isMarked1 = s1 !== null && s1 !== undefined;
         const isMarked2 = s2 !== null && s2 !== undefined;
-        const isMismatch = isMarked1 && isMarked2 && s1 !== s2;
+        const isMismatch = (currentUiMode === 'normal') && isMarked1 && isMarked2 && s1 !== s2;
         if (isMismatch) mismatchCount++;
 
         const activeScore = appState.s2.currentStream === 1 ? s1 : s2;
@@ -2615,7 +2712,7 @@
         };
 
         let badgeHtml = '';
-        if (appState.s2.isDoubleMode) {
+        if (currentUiMode === 'normal' && appState.s2.isDoubleMode) {
           const t1Text = isMarked1 ? `${s1}点` : '-';
           const t2Text = isMarked2 ? `${s2}点` : '-';
           if (isMismatch) {
@@ -2671,7 +2768,7 @@
         numBadge.addEventListener('mouseleave', hideStudentNameTooltip);
       });
 
-      if (appState.s2.isDoubleMode && mismatchCount > 0) {
+      if (currentUiMode === 'normal' && appState.s2.isDoubleMode && mismatchCount > 0) {
         s2MismatchCounterBox.classList.remove('hidden');
         s2MismatchCountEl.textContent = mismatchCount;
       } else {
@@ -2791,7 +2888,7 @@
       });
     }
 
-    // ================= 11. Step 2 採点キーバインド =================
+    // ================= 12. Step 2 採点キーバインド =================
     window.addEventListener('keydown', (e) => {
       if (appState.currentStep !== 2) return;
       if (appState.listeningKeyType) return;
@@ -2898,7 +2995,7 @@
       renderS2Tiles();
     });
 
-    // ================= 12. 拡大モーダル制御 =================
+    // ================= 13. 拡大モーダル制御 =================
     let modalTransform = { scale: 1, panX: 0, panY: 0, isDragging: false, startX: 0, startY: 0 };
     let activeModalImage = null;
 
@@ -3105,7 +3202,7 @@
       renderModalZoomCanvas();
     }, { passive: false });
 
-    // ================= 13. 出席番号確認モーダル =================
+    // ================= 14. 出席番号確認モーダル =================
     document.getElementById('s2-open-num-modal-btn').addEventListener('click', () => {
       if (appState.s2.students.length === 0) { alert('先に答案PDFを読み込んでください。'); return; }
       renderStudentNumModal();
@@ -3196,7 +3293,7 @@
       });
     }
 
-    // ================= 14. 答案PDF展開 ＆ 90度回転補正 =================
+    // ================= 15. 答案PDF展開 ＆ 90度回転補正 =================
     async function processStudentsPdf(file) {
       if (appState.s2.questions.length === 0) {
         alert('設問枠が設定されていません。Step 1 で枠を設定してください。');
@@ -3319,7 +3416,7 @@
     document.getElementById('s2-export-results-btn').addEventListener('click', () => {
       if (appState.s2.students.length === 0) { alert('採点データがありません。'); return; }
 
-      if (appState.s2.isDoubleMode) {
+      if (currentUiMode === 'normal' && appState.s2.isDoubleMode) {
         const mismatchCount = getMismatchCount();
         if (mismatchCount > 0) {
           alert(`⚠️ 系統1と系統2の採点に「不一致」が ${mismatchCount} 件残っています。\n解消するまでExcel出力はできません。`);
@@ -3348,10 +3445,13 @@
         const row = {
           "出席番号": Number(std.studentNum) || std.studentNum,
           "生徒氏名": std.name,
-          "知識合計": kTotal,
-          "思考合計": tTotal,
           "総合得点": total
         };
+
+        if (currentUiMode === 'normal' && appState.s1.enableAspect) {
+          row["知識合計"] = kTotal;
+          row["思考合計"] = tTotal;
+        }
 
         appState.s2.questions.forEach(q => { row[q.name] = qScoresMap[q.name]; });
         return row;
@@ -3367,7 +3467,7 @@
     document.getElementById('s2-export-return-pdf-btn').addEventListener('click', async () => {
       if (appState.s2.students.length === 0) { alert('出力対象の答案データがありません。'); return; }
 
-      if (appState.s2.isDoubleMode) {
+      if (currentUiMode === 'normal' && appState.s2.isDoubleMode) {
         const mismatchCount = getMismatchCount();
         if (mismatchCount > 0) {
           alert(`⚠️ 系統1と系統2の採点に「不一致」が ${mismatchCount} 件残っています。\n解消するまで返却用PDFは出力できません。`);
@@ -3479,18 +3579,20 @@
                   drawCtx.textAlign = 'center';
                   drawCtx.textBaseline = 'middle';
                   drawCtx.fillText(`${totalScore}`, bx + bw / 2, by + bh / 2);
-                } else if (mb.category === 'aspect_k_score') {
-                  const fontSize = Math.max(24, Math.round(bh * 0.6));
-                  drawCtx.font = `bold ${fontSize}px sans-serif`;
-                  drawCtx.textAlign = 'center';
-                  drawCtx.textBaseline = 'middle';
-                  drawCtx.fillText(`${kTotal}`, bx + bw / 2, by + bh / 2);
-                } else if (mb.category === 'aspect_t_score') {
-                  const fontSize = Math.max(24, Math.round(bh * 0.6));
-                  drawCtx.font = `bold ${fontSize}px sans-serif`;
-                  drawCtx.textAlign = 'center';
-                  drawCtx.textBaseline = 'middle';
-                  drawCtx.fillText(`${tTotal}`, bx + bw / 2, by + bh / 2);
+                } else if (currentUiMode === 'normal' && appState.s1.enableAspect) {
+                  if (mb.category === 'aspect_k_score') {
+                    const fontSize = Math.max(24, Math.round(bh * 0.6));
+                    drawCtx.font = `bold ${fontSize}px sans-serif`;
+                    drawCtx.textAlign = 'center';
+                    drawCtx.textBaseline = 'middle';
+                    drawCtx.fillText(`${kTotal}`, bx + bw / 2, by + bh / 2);
+                  } else if (mb.category === 'aspect_t_score') {
+                    const fontSize = Math.max(24, Math.round(bh * 0.6));
+                    drawCtx.font = `bold ${fontSize}px sans-serif`;
+                    drawCtx.textAlign = 'center';
+                    drawCtx.textBaseline = 'middle';
+                    drawCtx.fillText(`${tTotal}`, bx + bw / 2, by + bh / 2);
+                  }
                 }
               });
               drawCtx.textAlign = 'start';
@@ -3529,7 +3631,7 @@
       setTimeout(() => {
         try {
           const exportData = {
-            version: "3.6",
+            version: "3.7",
             appName: "でじたる採点くん",
             createdAt: new Date().toISOString(),
             pagesPerStudent: appState.s1.pagesPerStudent,
@@ -3572,8 +3674,9 @@
       reader.readAsText(file);
     });
 
-    // 起動時のセッション確認
+    // 起動時のセッション確認とモード初期適用
     window.addEventListener('DOMContentLoaded', () => {
+      applyUiMode(currentUiMode);
       checkAuthSession();
     });
   </script>
