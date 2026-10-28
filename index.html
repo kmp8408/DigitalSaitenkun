@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>でじたる採点くん Ver 3.5</title>
+  <title>でじたる採点くん Ver 3.6</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script>
@@ -64,7 +64,7 @@
         <i class="fa-solid fa-pen-ruler text-xs"></i>
       </div>
       <span class="font-bold text-sm tracking-wide text-white">でじたる採点くん</span>
-      <span class="text-[10px] bg-slate-800 text-slate-400 px-2 py-0.5 rounded font-mono">Ver 3.5 自動吸着枠版</span>
+      <span class="text-[10px] bg-slate-800 text-slate-400 px-2 py-0.5 rounded font-mono">Ver 3.6 認証・ログ統合版</span>
       <span id="autosave-indicator" class="text-[10px] text-emerald-400 flex items-center space-x-1 ml-2">
         <i class="fa-solid fa-cloud-arrow-up"></i><span>自動保存済</span>
       </span>
@@ -82,8 +82,19 @@
       </button>
     </div>
 
-    <!-- 共有ユーティリティ -->
+    <!-- 共有ユーティリティ ＆ サインインユーザー表示 -->
     <div class="flex items-center space-x-2 text-xs">
+      <!-- ログイン中教員表示 -->
+      <div class="flex items-center space-x-1.5 bg-slate-900 px-2.5 py-1 rounded border border-slate-800">
+        <i class="fa-solid fa-user-check text-emerald-400 text-xs"></i>
+        <span id="current-user-display" class="font-bold text-slate-200">未サインイン</span>
+      </div>
+      <button id="btn-sign-out" class="px-2 py-1 bg-slate-800 hover:bg-rose-900/40 text-slate-400 hover:text-rose-200 rounded border border-slate-700 transition text-[11px]" title="サインアウト">
+        <i class="fa-solid fa-arrow-right-from-bracket mr-1"></i>サインアウト
+      </button>
+
+      <div class="w-px h-4 bg-slate-800 mx-1"></div>
+
       <button id="global-export-json-btn" class="px-2.5 py-1 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded border border-slate-700 transition flex items-center space-x-1" title="枠定義と模範画像をJSONファイルとして保存">
         <i class="fa-solid fa-download text-[11px] text-indigo-400"></i>
         <span>JSON保存</span>
@@ -581,12 +592,168 @@
     <p id="loading-subtitle" class="text-xs text-slate-400 font-mono">しばらくお待ちください</p>
   </div>
 
+  <!-- ================= Googleスプレッドシート連携 サインインモーダル ================= -->
+  <div id="signin-modal" class="fixed inset-0 bg-slate-950/95 backdrop-blur-md z-50 flex items-center justify-center p-4">
+    <div class="bg-slate-900 border border-slate-700 rounded-2xl shadow-2xl w-full max-w-md overflow-hidden">
+      <div class="p-6 bg-slate-800/60 border-b border-slate-700 text-center">
+        <div class="inline-flex bg-indigo-600 p-3 rounded-2xl text-white font-bold mb-3 shadow-lg shadow-indigo-500/30">
+          <i class="fa-solid fa-pen-ruler text-2xl"></i>
+        </div>
+        <h2 class="text-lg font-bold text-white tracking-wide">でじたる採点くん</h2>
+        <p class="text-xs text-slate-400 mt-1">教員アカウント サインイン</p>
+      </div>
+
+      <form id="signin-form" class="p-6 space-y-4 text-xs">
+        <div id="signin-error" class="hidden p-2.5 rounded-lg bg-rose-950/60 border border-rose-800/80 text-rose-300 font-medium"></div>
+
+        <div>
+          <label class="block text-slate-400 font-bold mb-1">ユーザーID</label>
+          <input type="text" id="signin-userid" required autocomplete="username" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-white font-mono text-sm focus:border-indigo-500 outline-none" placeholder="例: mori または machi">
+        </div>
+
+        <div>
+          <label class="block text-slate-400 font-bold mb-1">パスワード</label>
+          <input type="password" id="signin-password" required autocomplete="current-password" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-white font-mono text-sm focus:border-indigo-500 outline-none" placeholder="••••••••">
+        </div>
+
+        <button type="submit" id="btn-submit-signin" class="w-full py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-sm rounded-xl shadow-lg shadow-indigo-600/30 transition flex items-center justify-center space-x-2">
+          <i class="fa-solid fa-right-to-bracket"></i>
+          <span>サインインして開始</span>
+        </button>
+
+        <!-- 管理用：連携URL設定（折りたたみ） -->
+        <div class="pt-2 border-t border-slate-800">
+          <details class="text-[11px] text-slate-500">
+            <summary class="cursor-pointer hover:text-slate-400">⚙️ 連携GASエンドポイント設定</summary>
+            <div class="mt-2 space-y-1">
+              <label class="block text-slate-400 text-[10px]">GAS Web App URL:</label>
+              <input type="text" id="setting-gas-url" class="w-full bg-slate-950 border border-slate-700 rounded p-1.5 text-slate-300 font-mono text-[10px] outline-none" placeholder="https://script.google.com/macros/s/.../exec">
+            </div>
+          </details>
+        </div>
+      </form>
+    </div>
+  </div>
+
   <!-- ================= JavaScript アプリケーションコア ================= -->
   <script>
     if (window.pdfjsLib) {
       window.pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
     }
 
+    // ================= 1. Googleスプレッドシート（GAS）認証 ＆ ログ連携 =================
+    const DEFAULT_GAS_URL = "https://script.google.com/macros/s/AKfycbzO4gbthsrGR68yTc8XTGHjsxZzf3cpf0NiDdWpnj8tve8r8EhcCtsmgr5jGK-3I1EqoA/exec";
+
+    function getGasUrl() {
+      return localStorage.getItem('d_saiten_gas_url') || DEFAULT_GAS_URL;
+    }
+
+    const authState = {
+      currentUser: null // { userId, name, role }
+    };
+
+    const signinModal = document.getElementById('signin-modal');
+    const signinForm = document.getElementById('signin-form');
+    const signinError = document.getElementById('signin-error');
+    const currentUserDisplay = document.getElementById('current-user-display');
+    const btnSubmitSignin = document.getElementById('btn-submit-signin');
+    const settingGasUrl = document.getElementById('setting-gas-url');
+
+    if (settingGasUrl) {
+      settingGasUrl.value = getGasUrl();
+      settingGasUrl.addEventListener('change', (e) => {
+        localStorage.setItem('d_saiten_gas_url', e.target.value.trim());
+      });
+    }
+
+    signinForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      signinError.classList.add('hidden');
+
+      const gasUrl = getGasUrl();
+      if (!gasUrl) {
+        showSigninError("GASのWeb App URLが未設定です。");
+        return;
+      }
+
+      const userId = document.getElementById('signin-userid').value.trim();
+      const password = document.getElementById('signin-password').value;
+
+      btnSubmitSignin.disabled = true;
+      btnSubmitSignin.innerHTML = '<i class="fa-solid fa-spinner animate-spin"></i><span>スプレッドシート照合中...</span>';
+
+      try {
+        const response = await fetch(gasUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+          body: JSON.stringify({
+            action: 'signIn',
+            userId: userId,
+            password: password
+          })
+        });
+
+        const res = await response.json();
+
+        if (!res.success) {
+          showSigninError(res.message || "サインインに失敗しました。");
+          return;
+        }
+
+        // 認証成功
+        authState.currentUser = res.user;
+        sessionStorage.setItem('d_saiten_auth_user', JSON.stringify(res.user));
+
+        currentUserDisplay.textContent = `${res.user.name} (${res.user.userId})`;
+        signinModal.classList.add('hidden');
+        signinForm.reset();
+
+        // 採点作業データの復元チェック
+        checkAndRestoreAutoSave();
+
+      } catch (err) {
+        console.error("認証通信エラー:", err);
+        showSigninError("スプレッドシート連携APIへの接続に失敗しました。URLまたはネットワーク環境をご確認ください。");
+      } finally {
+        btnSubmitSignin.disabled = false;
+        btnSubmitSignin.innerHTML = '<i class="fa-solid fa-right-to-bracket"></i><span>サインインして開始</span>';
+      }
+    });
+
+    function showSigninError(msg) {
+      signinError.textContent = msg;
+      signinError.classList.remove('hidden');
+    }
+
+    document.getElementById('btn-sign-out').addEventListener('click', () => {
+      if (confirm('サインアウトしますか？')) {
+        sessionStorage.removeItem('d_saiten_auth_user');
+        authState.currentUser = null;
+        currentUserDisplay.textContent = '未サインイン';
+        signinModal.classList.remove('hidden');
+        document.getElementById('signin-userid').focus();
+      }
+    });
+
+    function checkAuthSession() {
+      const saved = sessionStorage.getItem('d_saiten_auth_user');
+      if (saved) {
+        try {
+          const user = JSON.parse(saved);
+          authState.currentUser = user;
+          currentUserDisplay.textContent = `${user.name} (${user.userId})`;
+          signinModal.classList.add('hidden');
+          checkAndRestoreAutoSave();
+          return;
+        } catch (e) {
+          sessionStorage.removeItem('d_saiten_auth_user');
+        }
+      }
+      currentUserDisplay.textContent = '未サインイン';
+      signinModal.classList.remove('hidden');
+    }
+
+    // ================= 2. ユーティリティ・採点エンジン =================
     function incrementQuestionName(name) {
       const parenMatch = name.match(/^(.*[\(（])(\d+)([\)）].*)$/);
       if (parenMatch) return `${parenMatch[1]}${parseInt(parenMatch[2], 10) + 1}${parenMatch[3]}`;
@@ -601,7 +768,7 @@
       return `${name}_copy`;
     }
 
-    // --- グローバル状態管理 ---
+    // グローバル状態管理
     const appState = {
       currentStep: 1,
       customKeys: {
@@ -623,7 +790,7 @@
         mode: 'box',
         currentCategory: 'question',
         isSpaceDown: false,
-        isShiftDown: false,      // ★ Shiftキー押下状態
+        isShiftDown: false,      // Shiftキー押下状態
         enableAspect: true,
         boxes: [],               // 登録枠配列
         selectedIds: [],
@@ -631,7 +798,7 @@
         dragStartPt: { x: 0, y: 0 },
         boxOrigStates: new Map(),
         tempBox: null,
-        autoHoverBox: null,      // ★ 自動吸着のプレビュー枠 {x, y, w, h}
+        autoHoverBox: null,      // 自動吸着のプレビュー枠
         draggedBoxId: null
       },
       s2: {
@@ -733,7 +900,7 @@
     }
     function hideLoading() { loadingOverlay.classList.add('hidden'); }
 
-    // ================= キーバインド・カスタマイズ制御 =================
+    // ================= 3. キーバインド・カスタマイズ制御 =================
     function formatKeyDisplay(keyStr) {
       if (!keyStr) return '';
       if (keyStr === ' ') return 'SPACE';
@@ -794,7 +961,7 @@
       }
     }, true);
 
-    // ================= IndexedDB 自動保存 ＆ 復元 =================
+    // ================= 4. IndexedDB 自動保存 ＆ 復元 =================
     const DB_NAME = 'DejitaruSaitenDB_v3';
     const DB_VERSION = 1;
     let dbInstance = null;
@@ -943,7 +1110,7 @@
       }
     });
 
-    // ================= タブ切り替え =================
+    // ================= 5. タブ切り替え =================
     function switchTab(step) {
       appState.currentStep = step;
       if (step === 1) {
@@ -1023,7 +1190,7 @@
       triggerAutoSave();
     }
 
-    // ================= 90度回転補正システム =================
+    // ================= 6. 90度回転補正システム =================
     function openRotationModal(title, sourceCanvases, onConfirmCallback) {
       appState.rotation.angle = 0;
       appState.rotation.tempCanvases = sourceCanvases;
@@ -1091,7 +1258,7 @@
       }
     });
 
-    // ================= ドラッグ＆ドロップ (ファイル読み込み) =================
+    // ドラッグ＆ドロップ
     viewStep1.addEventListener('dragover', (e) => { e.preventDefault(); viewStep1.classList.add('drag-over-overlay'); });
     viewStep1.addEventListener('dragleave', (e) => {
       if (e.relatedTarget === null || !viewStep1.contains(e.relatedTarget)) viewStep1.classList.remove('drag-over-overlay');
@@ -1125,7 +1292,7 @@
       }
     });
 
-    // ================= STEP 1: 枠設定エディタ =================
+    // ================= 7. STEP 1: 枠設定エディタ =================
     function s1ApplyTransform() {
       s1Wrapper.style.transform = `matrix(${appState.s1.scale}, 0, 0, ${appState.s1.scale}, ${appState.s1.panX}, ${appState.s1.panY})`;
       s1ZoomText.textContent = `${Math.round(appState.s1.scale * 100)}%`;
@@ -1366,7 +1533,7 @@
       }
     }
 
-    // ================= ★ 高度な解答枠自動検出（フラッドフィル＋1pxモルフォロジー膨張） ★ =================
+    // ================= 8. 高度な解答枠自動検出（フラッドフィル＋1pxモルフォロジー膨張） =================
     function detectBoxAtPoint(startX, startY) {
       const pageInfo = appState.s1.pages.find(p => p.pageNum === appState.s1.currentPage);
       if (!pageInfo || !pageInfo.canvas) return null;
@@ -1379,7 +1546,6 @@
       startX = Math.round(startX);
       startY = Math.round(startY);
 
-      // ROI（探索領域）を限定して超高速化（半径400px）
       const roiRadius = 450;
       const minRoiX = Math.max(0, startX - roiRadius);
       const minRoiY = Math.max(0, startY - roiRadius);
@@ -1393,7 +1559,6 @@
       const imgData = ctx.getImageData(minRoiX, minRoiY, roiW, roiH);
       const data = imgData.data;
 
-      // 輝度計算関数（暗いピクセルを黒=1、白を0とする）
       function isDarkPixel(rx, ry) {
         if (rx < 0 || rx >= roiW || ry < 0 || ry >= roiH) return 1;
         const idx = (ry * roiW + rx) * 4;
@@ -1404,12 +1569,10 @@
         return brightness < 135 ? 1 : 0;
       }
 
-      // ★ 1pxモルフォロジー膨張（境界線が1px途切れていても穴を塞いで漏れ出しを完全防止）
       function isBlocked(rx, ry) {
         if (isDarkPixel(rx, ry)) return true;
-        // 上下左右1pxに黒線があれば壁とみなす
         if (isDarkPixel(rx + 1, ry) || isDarkPixel(rx - 1, ry) ||
-            isDarkPixel(rx, ry + 1) || isDarkPixel(rx, ry - 1)) {
+            isDarkPixel(rx, ry + 1) || isDarkPixel(rx - 1, ry)) {
           return true;
         }
         return false;
@@ -1418,10 +1581,8 @@
       const seedRx = startX - minRoiX;
       const seedRy = startY - minRoiY;
 
-      // クリック地点が既に黒枠の上なら無効
       if (isBlocked(seedRx, seedRy)) return null;
 
-      // フラッドフィル面探索
       const visited = new Uint8Array(roiW * roiH);
       const queue = new Int32Array(roiW * roiH);
       let head = 0;
@@ -1447,12 +1608,10 @@
         if (cy < boundMinY) boundMinY = cy;
         if (cy > boundMaxY) boundMaxY = cy;
 
-        // ROI外周まで漏れ出したら失敗（閉じていない枠）
         if (cx <= 1 || cx >= roiW - 2 || cy <= 1 || cy >= roiH - 2) {
           return null;
         }
 
-        // 上下左右の探索
         const neighbors = [
           [cx + 1, cy], [cx - 1, cy], [cx, cy + 1], [cx, cy - 1]
         ];
@@ -1474,17 +1633,14 @@
       const boxW = boundMaxX - boundMinX;
       const boxH = boundMaxY - boundMinY;
 
-      // 枠のサイズ妥当性検証（細長い解答枠にも対応: 最小20px）
       if (boxW < 25 || boxH < 20 || boxW > roiRadius * 1.8 || boxH > roiRadius * 1.8) {
         return null;
       }
 
-      // 矩形フィッティング判定（塗りつぶし面積 / 外接矩形面積 >= 0.70）
       const rectArea = boxW * boxH;
       const ratio = filledCount / rectArea;
       if (ratio < 0.68) return null;
 
-      // 実際の用紙座標へ変換（モルフォロジーの1px分を綺麗に内接マージン補正）
       return {
         x: Math.round(minRoiX + boundMinX - 1),
         y: Math.round(minRoiY + boundMinY - 1),
@@ -1493,7 +1649,7 @@
       };
     }
 
-    // ================= マウス操作 ＆ 自動吸着枠イベント =================
+    // マウス操作 ＆ 自動吸着枠イベント
     s1Viewport.addEventListener('mousedown', (e) => {
       if (appState.s1.pages.length === 0) return;
       if (e.button === 1 || appState.s1.isSpaceDown || appState.s1.mode === 'pan') {
@@ -1509,7 +1665,6 @@
       const isMultiKey = e.ctrlKey || e.metaKey;
       const curPageBoxes = appState.s1.boxes.filter(b => (b.page || 1) === appState.s1.currentPage);
 
-      // リサイズハンドルの操作判定
       if (appState.s1.selectedIds.length === 1) {
         const selBox = curPageBoxes.find(b => b.id === appState.s1.selectedIds[0]);
         if (selBox) {
@@ -1526,7 +1681,6 @@
         }
       }
 
-      // 既存枠のクリック判定
       let clickedBox = null;
       for (let i = curPageBoxes.length - 1; i >= 0; i--) {
         const b = curPageBoxes[i];
@@ -1561,7 +1715,7 @@
         return;
       }
 
-      // ★【新機能】Shift ＋ クリックで自動黒枠作成！
+      // Shift ＋ クリックで自動黒枠作成
       if (e.shiftKey) {
         const autoBox = appState.s1.autoHoverBox || detectBoxAtPoint(pt.x, pt.y);
         if (autoBox) {
@@ -1619,9 +1773,8 @@
 
       const pt = s1ScreenToImageCoords(e.clientX, e.clientY);
 
-      // ★ Shiftキー押下中の「自動吸着ホバープレビュー」
+      // Shiftキー押下中の自動吸着ホバープレビュー
       if (e.shiftKey && !appState.s1.interactionMode && appState.s1.pages.length > 0) {
-        // カーソルが既存枠の上でない場合のみ探索
         const curPageBoxes = appState.s1.boxes.filter(b => (b.page || 1) === appState.s1.currentPage);
         const onExisting = curPageBoxes.some(b => pt.x >= b.x && pt.x <= b.x + b.w && pt.y >= b.y && pt.y <= b.y + b.h);
 
@@ -1838,7 +1991,6 @@
         s1SvgOverlay.appendChild(g);
       });
 
-      // 手動ドラッグ中の枠
       if (appState.s1.tempBox) {
         const meta = getCategoryMeta(appState.s1.currentCategory || 'question');
         const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
@@ -1853,7 +2005,6 @@
         s1SvgOverlay.appendChild(rect);
       }
 
-      // ★【新機能】Shiftキー時の「自動吸着ホバープレビュー枠」（鮮やかな水色でピタッと光る）
       if (appState.s1.autoHoverBox && !appState.s1.interactionMode) {
         const hb = appState.s1.autoHoverBox;
         const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
@@ -2314,7 +2465,7 @@
       reader.readAsArrayBuffer(file);
     });
 
-    // ================= STEP 2: 串刺し採点ワークスペース =================
+    // ================= 9. STEP 2: 串刺し採点ワークスペース =================
     function initS2QuestionSelect() {
       s2QSelect.innerHTML = '';
       appState.s2.questions.forEach((q, idx) => {
@@ -2413,7 +2564,7 @@
     s2BtnStream1.addEventListener('click', () => setS2Stream(1));
     s2BtnStream2.addEventListener('click', () => setS2Stream(2));
 
-    // ================= 採点タイル描画 ＆ ホバー氏名ツールチップ =================
+    // ================= 10. 採点タイル描画 ＆ ホバー氏名ツールチップ =================
     function renderS2Tiles() {
       if (appState.s2.students.length === 0) {
         s2EmptyWorkspace.classList.remove('hidden');
@@ -2640,7 +2791,7 @@
       });
     }
 
-    // ================= Step 2 採点キーバインド =================
+    // ================= 11. Step 2 採点キーバインド =================
     window.addEventListener('keydown', (e) => {
       if (appState.currentStep !== 2) return;
       if (appState.listeningKeyType) return;
@@ -2662,14 +2813,12 @@
       const maxPts = curQ.points;
       const pressedKey = e.key.toLowerCase();
 
-      // Spaceキー拡大
       if (e.code === 'Space') {
         e.preventDefault();
         openModal();
         return;
       }
 
-      // 満点 / 0点
       if (pressedKey === appState.customKeys.correct) {
         e.preventDefault();
         assignS2Score(maxPts);
@@ -2681,7 +2830,6 @@
         return;
       }
 
-      // 設問切替
       if (pressedKey === appState.customKeys.prevQ) {
         e.preventDefault();
         document.getElementById('s2-prev-q-btn').click();
@@ -2693,7 +2841,6 @@
         return;
       }
 
-      // 部分点（0〜9）
       if (/^[0-9]$/.test(e.key)) {
         e.preventDefault();
         const inputNum = parseInt(e.key, 10);
@@ -2751,7 +2898,7 @@
       renderS2Tiles();
     });
 
-    // ================= 拡大モーダル制御 =================
+    // ================= 12. 拡大モーダル制御 =================
     let modalTransform = { scale: 1, panX: 0, panY: 0, isDragging: false, startX: 0, startY: 0 };
     let activeModalImage = null;
 
@@ -2958,7 +3105,7 @@
       renderModalZoomCanvas();
     }, { passive: false });
 
-    // ================= 出席番号確認モーダル =================
+    // ================= 13. 出席番号確認モーダル =================
     document.getElementById('s2-open-num-modal-btn').addEventListener('click', () => {
       if (appState.s2.students.length === 0) { alert('先に答案PDFを読み込んでください。'); return; }
       renderStudentNumModal();
@@ -3049,7 +3196,7 @@
       });
     }
 
-    // ================= 答案PDF展開 ＆ 90度回転補正 =================
+    // ================= 14. 答案PDF展開 ＆ 90度回転補正 =================
     async function processStudentsPdf(file) {
       if (appState.s2.questions.length === 0) {
         alert('設問枠が設定されていません。Step 1 で枠を設定してください。');
@@ -3382,7 +3529,7 @@
       setTimeout(() => {
         try {
           const exportData = {
-            version: "3.5",
+            version: "3.6",
             appName: "でじたる採点くん",
             createdAt: new Date().toISOString(),
             pagesPerStudent: appState.s1.pagesPerStudent,
@@ -3425,8 +3572,9 @@
       reader.readAsText(file);
     });
 
+    // 起動時のセッション確認
     window.addEventListener('DOMContentLoaded', () => {
-      checkAndRestoreAutoSave();
+      checkAuthSession();
     });
   </script>
 </body>
