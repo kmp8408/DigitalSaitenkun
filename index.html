@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>でじたる採点くん Ver 3.4.1</title>
+  <title>でじたる採点くん Ver 3.5</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script>
@@ -64,7 +64,7 @@
         <i class="fa-solid fa-pen-ruler text-xs"></i>
       </div>
       <span class="font-bold text-sm tracking-wide text-white">でじたる採点くん</span>
-      <span class="text-[10px] bg-slate-800 text-slate-400 px-2 py-0.5 rounded font-mono">Ver 3.4.1 表示修正版</span>
+      <span class="text-[10px] bg-slate-800 text-slate-400 px-2 py-0.5 rounded font-mono">Ver 3.5 自動吸着枠版</span>
       <span id="autosave-indicator" class="text-[10px] text-emerald-400 flex items-center space-x-1 ml-2">
         <i class="fa-solid fa-cloud-arrow-up"></i><span>自動保存済</span>
       </span>
@@ -138,6 +138,12 @@
           <button id="s1-tool-pan-btn" class="px-2 py-0.5 rounded hover:bg-slate-700 text-slate-300 font-medium flex items-center space-x-1 transition shrink-0">
             <i class="fa-solid fa-hand text-[10px]"></i><span>移動</span>
           </button>
+        </div>
+
+        <!-- 💡 自動吸着のガイドバッジ -->
+        <div class="flex items-center space-x-1 bg-indigo-950/80 px-2 py-1 rounded-lg border border-indigo-700/60 text-[10px] text-indigo-300 shrink-0">
+          <i class="fa-solid fa-wand-magic-sparkles text-amber-300"></i>
+          <span><b>Shift</b>＋クリックで解答枠を自動認識</span>
         </div>
       </div>
 
@@ -219,6 +225,7 @@
           </div>
         </div>
 
+        <!-- 枠 編集パネル -->
         <div id="s1-selection-panel" class="p-3 border-b border-slate-700 bg-slate-750 hidden">
           <div class="flex justify-between items-center mb-2">
             <span class="font-bold text-indigo-300 flex items-center space-x-1">
@@ -525,12 +532,9 @@
     </div>
   </div>
 
-  <!-- ★ 拡大モーダル（高さ固定＆縦幅消失バグ修正済み） ★ -->
+  <!-- 拡大モーダル（高さ固定版） -->
   <div id="zoom-modal" class="fixed inset-0 bg-slate-950/85 backdrop-blur-sm z-50 flex flex-col items-center justify-center p-4 hidden">
-    <!-- 親要素に明確な h-[85vh] を与え、flex-col でレイアウトを担保 -->
     <div class="relative bg-slate-900 border border-slate-700 rounded-2xl p-4 shadow-2xl w-full max-w-5xl h-[85vh] flex flex-col overflow-hidden">
-      
-      <!-- モーダルヘッダー -->
       <div class="w-full flex justify-between items-center mb-3 shrink-0">
         <div class="flex items-center space-x-3">
           <span id="modal-title" class="font-bold text-base text-indigo-300">出席番号 1番</span>
@@ -547,12 +551,10 @@
         </div>
       </div>
 
-      <!-- モーダル中央ビューポート（確実に高さを占有） -->
       <div id="modal-viewport" class="flex-1 w-full bg-slate-950 rounded-xl border border-slate-700 relative overflow-hidden peeking-window cursor-grab">
         <canvas id="modal-zoom-canvas" class="block w-full h-full"></canvas>
       </div>
 
-      <!-- モーダルフッター -->
       <div class="w-full flex justify-between items-center text-xs text-slate-400 mt-3 px-1 font-mono shrink-0">
         <span>💡 ドラッグで移動 / ホイールで拡大縮小</span>
         <span>Space または Esc で閉じます</span>
@@ -621,6 +623,7 @@
         mode: 'box',
         currentCategory: 'question',
         isSpaceDown: false,
+        isShiftDown: false,      // ★ Shiftキー押下状態
         enableAspect: true,
         boxes: [],               // 登録枠配列
         selectedIds: [],
@@ -628,6 +631,7 @@
         dragStartPt: { x: 0, y: 0 },
         boxOrigStates: new Map(),
         tempBox: null,
+        autoHoverBox: null,      // ★ 自動吸着のプレビュー枠 {x, y, w, h}
         draggedBoxId: null
       },
       s2: {
@@ -1272,6 +1276,7 @@
     function switchS1Page(pageNum) {
       appState.s1.currentPage = pageNum;
       appState.s1.selectedIds = [];
+      appState.s1.autoHoverBox = null;
       renderS1PageTabs();
 
       const pageInfo = appState.s1.pages.find(p => p.pageNum === pageNum);
@@ -1361,6 +1366,134 @@
       }
     }
 
+    // ================= ★ 高度な解答枠自動検出（フラッドフィル＋1pxモルフォロジー膨張） ★ =================
+    function detectBoxAtPoint(startX, startY) {
+      const pageInfo = appState.s1.pages.find(p => p.pageNum === appState.s1.currentPage);
+      if (!pageInfo || !pageInfo.canvas) return null;
+
+      const canvas = pageInfo.canvas;
+      const ctx = canvas.getContext('2d');
+      const imgW = canvas.width;
+      const imgH = canvas.height;
+
+      startX = Math.round(startX);
+      startY = Math.round(startY);
+
+      // ROI（探索領域）を限定して超高速化（半径400px）
+      const roiRadius = 450;
+      const minRoiX = Math.max(0, startX - roiRadius);
+      const minRoiY = Math.max(0, startY - roiRadius);
+      const maxRoiX = Math.min(imgW - 1, startX + roiRadius);
+      const maxRoiY = Math.min(imgH - 1, startY + roiRadius);
+      const roiW = maxRoiX - minRoiX + 1;
+      const roiH = maxRoiY - minRoiY + 1;
+
+      if (roiW <= 30 || roiH <= 30) return null;
+
+      const imgData = ctx.getImageData(minRoiX, minRoiY, roiW, roiH);
+      const data = imgData.data;
+
+      // 輝度計算関数（暗いピクセルを黒=1、白を0とする）
+      function isDarkPixel(rx, ry) {
+        if (rx < 0 || rx >= roiW || ry < 0 || ry >= roiH) return 1;
+        const idx = (ry * roiW + rx) * 4;
+        const r = data[idx];
+        const g = data[idx + 1];
+        const b = data[idx + 2];
+        const brightness = 0.299 * r + 0.587 * g + 0.114 * b;
+        return brightness < 135 ? 1 : 0;
+      }
+
+      // ★ 1pxモルフォロジー膨張（境界線が1px途切れていても穴を塞いで漏れ出しを完全防止）
+      function isBlocked(rx, ry) {
+        if (isDarkPixel(rx, ry)) return true;
+        // 上下左右1pxに黒線があれば壁とみなす
+        if (isDarkPixel(rx + 1, ry) || isDarkPixel(rx - 1, ry) ||
+            isDarkPixel(rx, ry + 1) || isDarkPixel(rx, ry - 1)) {
+          return true;
+        }
+        return false;
+      }
+
+      const seedRx = startX - minRoiX;
+      const seedRy = startY - minRoiY;
+
+      // クリック地点が既に黒枠の上なら無効
+      if (isBlocked(seedRx, seedRy)) return null;
+
+      // フラッドフィル面探索
+      const visited = new Uint8Array(roiW * roiH);
+      const queue = new Int32Array(roiW * roiH);
+      let head = 0;
+      let tail = 0;
+
+      queue[tail++] = (seedRy << 16) | seedRx;
+      visited[seedRy * roiW + seedRx] = 1;
+
+      let boundMinX = seedRx;
+      let boundMaxX = seedRx;
+      let boundMinY = seedRy;
+      let boundMaxY = seedRy;
+      let filledCount = 0;
+
+      while (head < tail) {
+        const curr = queue[head++];
+        const cx = curr & 0xFFFF;
+        const cy = curr >> 16;
+        filledCount++;
+
+        if (cx < boundMinX) boundMinX = cx;
+        if (cx > boundMaxX) boundMaxX = cx;
+        if (cy < boundMinY) boundMinY = cy;
+        if (cy > boundMaxY) boundMaxY = cy;
+
+        // ROI外周まで漏れ出したら失敗（閉じていない枠）
+        if (cx <= 1 || cx >= roiW - 2 || cy <= 1 || cy >= roiH - 2) {
+          return null;
+        }
+
+        // 上下左右の探索
+        const neighbors = [
+          [cx + 1, cy], [cx - 1, cy], [cx, cy + 1], [cx, cy - 1]
+        ];
+
+        for (let i = 0; i < 4; i++) {
+          const nx = neighbors[i][0];
+          const ny = neighbors[i][1];
+          const vIdx = ny * roiW + nx;
+
+          if (!visited[vIdx]) {
+            visited[vIdx] = 1;
+            if (!isBlocked(nx, ny)) {
+              queue[tail++] = (ny << 16) | nx;
+            }
+          }
+        }
+      }
+
+      const boxW = boundMaxX - boundMinX;
+      const boxH = boundMaxY - boundMinY;
+
+      // 枠のサイズ妥当性検証（細長い解答枠にも対応: 最小20px）
+      if (boxW < 25 || boxH < 20 || boxW > roiRadius * 1.8 || boxH > roiRadius * 1.8) {
+        return null;
+      }
+
+      // 矩形フィッティング判定（塗りつぶし面積 / 外接矩形面積 >= 0.70）
+      const rectArea = boxW * boxH;
+      const ratio = filledCount / rectArea;
+      if (ratio < 0.68) return null;
+
+      // 実際の用紙座標へ変換（モルフォロジーの1px分を綺麗に内接マージン補正）
+      return {
+        x: Math.round(minRoiX + boundMinX - 1),
+        y: Math.round(minRoiY + boundMinY - 1),
+        w: Math.round(boxW + 2),
+        h: Math.round(boxH + 2)
+      };
+    }
+
+    // ================= マウス操作 ＆ 自動吸着枠イベント =================
     s1Viewport.addEventListener('mousedown', (e) => {
       if (appState.s1.pages.length === 0) return;
       if (e.button === 1 || appState.s1.isSpaceDown || appState.s1.mode === 'pan') {
@@ -1373,9 +1506,10 @@
       if (e.button !== 0) return;
 
       const pt = s1ScreenToImageCoords(e.clientX, e.clientY);
-      const isMultiKey = e.shiftKey || e.ctrlKey || e.metaKey;
+      const isMultiKey = e.ctrlKey || e.metaKey;
       const curPageBoxes = appState.s1.boxes.filter(b => (b.page || 1) === appState.s1.currentPage);
 
+      // リサイズハンドルの操作判定
       if (appState.s1.selectedIds.length === 1) {
         const selBox = curPageBoxes.find(b => b.id === appState.s1.selectedIds[0]);
         if (selBox) {
@@ -1392,10 +1526,11 @@
         }
       }
 
+      // 既存枠のクリック判定
       let clickedBox = null;
       for (let i = curPageBoxes.length - 1; i >= 0; i--) {
         const b = curPageBoxes[i];
-        if (pt.x >= b.x && pt.x <= b.x + b.w && pt.y >= b.y && pt.y <= b.h + b.y) {
+        if (pt.x >= b.x && pt.x <= b.x + b.w && pt.y >= b.y && pt.y <= b.y + b.h) {
           clickedBox = b;
           break;
         }
@@ -1426,6 +1561,45 @@
         return;
       }
 
+      // ★【新機能】Shift ＋ クリックで自動黒枠作成！
+      if (e.shiftKey) {
+        const autoBox = appState.s1.autoHoverBox || detectBoxAtPoint(pt.x, pt.y);
+        if (autoBox) {
+          const cat = appState.s1.currentCategory || 'question';
+          let defaultName = '';
+          if (cat === 'question') {
+            const allQ = appState.s1.boxes.filter(b => b.category === 'question');
+            defaultName = allQ.length > 0 ? incrementQuestionName(allQ[allQ.length - 1].name) : '1(1)';
+          } else {
+            defaultName = getCategoryMeta(cat).label;
+          }
+
+          const newBox = {
+            id: 'box_' + Date.now(),
+            name: defaultName,
+            category: cat,
+            page: appState.s1.currentPage,
+            x: autoBox.x,
+            y: autoBox.y,
+            w: autoBox.w,
+            h: autoBox.h,
+            points: cat === 'question' ? 2 : 0,
+            rubric: '',
+            aspect: 'knowledge'
+          };
+
+          appState.s1.boxes.push(newBox);
+          appState.s1.selectedIds = [newBox.id];
+          appState.s1.autoHoverBox = null;
+          s1RenderBoxes();
+          s1UpdateSidebar();
+          triggerAutoSave();
+          e.stopPropagation();
+          return;
+        }
+      }
+
+      // 通常の手動ドラッグ枠作成
       if (!isMultiKey) appState.s1.selectedIds = [];
       appState.s1.interactionMode = 'drawing';
       appState.s1.dragStartPt = pt;
@@ -1442,13 +1616,33 @@
         s1ApplyTransform();
         return;
       }
+
+      const pt = s1ScreenToImageCoords(e.clientX, e.clientY);
+
+      // ★ Shiftキー押下中の「自動吸着ホバープレビュー」
+      if (e.shiftKey && !appState.s1.interactionMode && appState.s1.pages.length > 0) {
+        // カーソルが既存枠の上でない場合のみ探索
+        const curPageBoxes = appState.s1.boxes.filter(b => (b.page || 1) === appState.s1.currentPage);
+        const onExisting = curPageBoxes.some(b => pt.x >= b.x && pt.x <= b.x + b.w && pt.y >= b.y && pt.y <= b.y + b.h);
+
+        if (!onExisting) {
+          appState.s1.autoHoverBox = detectBoxAtPoint(pt.x, pt.y);
+          s1RenderBoxes();
+        } else if (appState.s1.autoHoverBox) {
+          appState.s1.autoHoverBox = null;
+          s1RenderBoxes();
+        }
+      } else if (!e.shiftKey && appState.s1.autoHoverBox) {
+        appState.s1.autoHoverBox = null;
+        s1RenderBoxes();
+      }
+
       if (!appState.s1.interactionMode) return;
 
       const pageInfo = appState.s1.pages.find(p => p.pageNum === appState.s1.currentPage);
       const pw = pageInfo ? pageInfo.width : 2000;
       const ph = pageInfo ? pageInfo.height : 2800;
 
-      const pt = s1ScreenToImageCoords(e.clientX, e.clientY);
       const dx = pt.x - appState.s1.dragStartPt.x;
       const dy = pt.y - appState.s1.dragStartPt.y;
 
@@ -1526,6 +1720,9 @@
 
     window.addEventListener('keydown', (e) => {
       if (appState.currentStep !== 1) return;
+      if (e.key === 'Shift') {
+        appState.s1.isShiftDown = true;
+      }
       if (e.code === 'Space' && !appState.s1.isSpaceDown && document.activeElement.tagName !== 'INPUT' && document.activeElement.tagName !== 'TEXTAREA') {
         appState.s1.isSpaceDown = true;
         s1Viewport.classList.add('panning');
@@ -1557,6 +1754,13 @@
 
     window.addEventListener('keyup', (e) => {
       if (appState.currentStep !== 1) return;
+      if (e.key === 'Shift') {
+        appState.s1.isShiftDown = false;
+        if (appState.s1.autoHoverBox) {
+          appState.s1.autoHoverBox = null;
+          s1RenderBoxes();
+        }
+      }
       if (e.code === 'Space') {
         appState.s1.isSpaceDown = false;
         s1Viewport.classList.remove('panning');
@@ -1634,6 +1838,7 @@
         s1SvgOverlay.appendChild(g);
       });
 
+      // 手動ドラッグ中の枠
       if (appState.s1.tempBox) {
         const meta = getCategoryMeta(appState.s1.currentCategory || 'question');
         const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
@@ -1646,6 +1851,37 @@
         rect.setAttribute('stroke-width', '2');
         rect.setAttribute('stroke-dasharray', '4,4');
         s1SvgOverlay.appendChild(rect);
+      }
+
+      // ★【新機能】Shiftキー時の「自動吸着ホバープレビュー枠」（鮮やかな水色でピタッと光る）
+      if (appState.s1.autoHoverBox && !appState.s1.interactionMode) {
+        const hb = appState.s1.autoHoverBox;
+        const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+        g.setAttribute('class', 'pointer-events-none animate-pulse');
+
+        const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+        rect.setAttribute('x', hb.x);
+        rect.setAttribute('y', hb.y);
+        rect.setAttribute('width', hb.w);
+        rect.setAttribute('height', hb.h);
+        rect.setAttribute('fill', 'rgba(56, 189, 248, 0.25)');
+        rect.setAttribute('stroke', '#38bdf8');
+        rect.setAttribute('stroke-width', '3');
+        rect.setAttribute('stroke-dasharray', '5,3');
+        rect.setAttribute('rx', '4');
+        g.appendChild(rect);
+
+        const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+        text.setAttribute('x', hb.x + 8);
+        text.setAttribute('y', hb.y + 20);
+        text.setAttribute('fill', '#38bdf8');
+        text.setAttribute('font-size', '13');
+        text.setAttribute('font-weight', 'bold');
+        text.setAttribute('font-family', 'sans-serif');
+        text.textContent = '✨ クリックで枠登録';
+        g.appendChild(text);
+
+        s1SvgOverlay.appendChild(g);
       }
     }
 
@@ -2515,7 +2751,7 @@
       renderS2Tiles();
     });
 
-    // ================= ★ 拡大モーダル制御（安定化版） ★ =================
+    // ================= 拡大モーダル制御 =================
     let modalTransform = { scale: 1, panX: 0, panY: 0, isDragging: false, startX: 0, startY: 0 };
     let activeModalImage = null;
 
@@ -2530,7 +2766,6 @@
       zoomModal.classList.remove('hidden');
       renderModalPageTabs();
 
-      // ★ モーダルが展開されて高低差がブラウザ上で確定するのを待って描画
       requestAnimationFrame(() => {
         setTimeout(() => {
           prepareAndRenderModalImage(true);
@@ -2653,12 +2888,10 @@
       modalZoomCtx.translate(modalTransform.panX, modalTransform.panY);
       modalZoomCtx.scale(modalTransform.scale, modalTransform.scale);
 
-      // 用紙本体の描画
       modalZoomCtx.fillStyle = '#ffffff';
       modalZoomCtx.fillRect(0, 0, img.naturalWidth, img.naturalHeight);
       modalZoomCtx.drawImage(img, 0, 0);
 
-      // 対象設問のハイライト枠線を描画
       const curQ = appState.s2.questions[appState.s2.currentQIndex];
       if (curQ && (curQ.page || 1) === appState.s2.modalViewPage && curQ.normalized) {
         const qx = curQ.normalized.x * img.naturalWidth;
@@ -2673,7 +2906,6 @@
         modalZoomCtx.fillStyle = 'rgba(99, 102, 241, 0.14)';
         modalZoomCtx.fillRect(qx, qy, qw, qh);
 
-        // ラベルタグ描画
         modalZoomCtx.fillStyle = '#6366f1';
         const fontSize = Math.max(16, Math.round(22 / modalTransform.scale));
         modalZoomCtx.font = `bold ${fontSize}px sans-serif`;
@@ -3150,7 +3382,7 @@
       setTimeout(() => {
         try {
           const exportData = {
-            version: "3.4",
+            version: "3.5",
             appName: "でじたる採点くん",
             createdAt: new Date().toISOString(),
             pagesPerStudent: appState.s1.pagesPerStudent,
