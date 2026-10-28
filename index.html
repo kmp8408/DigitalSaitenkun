@@ -100,10 +100,11 @@
 
     <!-- 共有ユーティリティ ＆ サインインユーザー表示 -->
     <div class="flex items-center space-x-2 text-xs">
-      <div class="flex items-center space-x-1.5 bg-slate-900 px-2.5 py-1 rounded border border-slate-800">
+      <button id="btn-user-profile" type="button" class="flex items-center space-x-1.5 bg-slate-900 hover:bg-slate-800 px-2.5 py-1 rounded border border-slate-800 hover:border-slate-700 transition cursor-pointer text-left" title="クリックしてパスワードを変更">
         <i class="fa-solid fa-user-check text-emerald-400 text-xs"></i>
         <span id="current-user-display" class="font-bold text-slate-200">未サインイン</span>
-      </div>
+        <i class="fa-solid fa-key text-[10px] text-slate-500 ml-1"></i>
+      </button>
       <button id="btn-sign-out" class="px-2 py-1 bg-slate-800 hover:bg-rose-900/40 text-slate-400 hover:text-rose-200 rounded border border-slate-700 transition text-[11px]" title="サインアウト">
         <i class="fa-solid fa-arrow-right-from-bracket mr-1"></i>サインアウト
       </button>
@@ -614,7 +615,47 @@
     <h3 id="loading-title" class="font-bold text-white text-base mb-1">処理中...</h3>
     <p id="loading-subtitle" class="text-xs text-slate-400 font-mono">しばらくお待ちください</p>
   </div>
+  
+<!-- ================= パスワード変更モーダル ================= -->
+  <div id="change-pw-modal" class="fixed inset-0 bg-slate-950/85 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+    <div class="bg-slate-900 border border-slate-700 rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden">
+      <div class="px-5 py-4 bg-slate-800 border-b border-slate-700 flex justify-between items-center">
+        <div class="flex items-center space-x-2">
+          <i class="fa-solid fa-key text-amber-400 text-sm"></i>
+          <h3 class="font-bold text-sm text-white">パスワードの変更</h3>
+        </div>
+        <button type="button" onclick="closeChangePwModal()" class="text-slate-400 hover:text-white p-1 text-base"><i class="fa-solid fa-xmark"></i></button>
+      </div>
 
+      <form id="change-pw-form" class="p-5 space-y-4 text-xs">
+        <div id="change-pw-error" class="hidden p-2.5 rounded-lg bg-rose-950/60 border border-rose-800/80 text-rose-300 font-medium"></div>
+
+        <div>
+          <label class="block text-slate-400 font-bold mb-1">教員氏名 (ID)</label>
+          <input type="text" id="change-pw-user-info" disabled class="w-full bg-slate-950/60 border border-slate-800 rounded px-2.5 py-1.5 text-slate-400 font-bold outline-none cursor-not-allowed">
+        </div>
+
+        <div>
+          <label class="block text-slate-300 font-bold mb-1">新しいパスワード</label>
+          <input type="password" id="new-password-input" required class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-white font-mono text-sm focus:border-indigo-500 outline-none" placeholder="新しいパスワードを入力">
+        </div>
+
+        <div>
+          <label class="block text-slate-300 font-bold mb-1">新しいパスワード (確認用)</label>
+          <input type="password" id="confirm-password-input" required class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-white font-mono text-sm focus:border-indigo-500 outline-none" placeholder="もう一度入力">
+        </div>
+
+        <div class="pt-2 flex justify-end space-x-2">
+          <button type="button" onclick="closeChangePwModal()" class="px-3.5 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg transition font-medium">キャンセル</button>
+          <button type="submit" id="btn-submit-change-pw" class="px-4 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-lg shadow transition flex items-center space-x-1.5">
+            <i class="fa-solid fa-check"></i>
+            <span>更新する</span>
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+  
   <!-- ================= サインインモーダル ================= -->
   <div id="signin-modal" class="fixed inset-0 bg-slate-950/95 backdrop-blur-md z-50 flex items-center justify-center p-4">
     <div class="bg-slate-900 border border-slate-700 rounded-2xl shadow-2xl w-full max-w-md overflow-hidden">
@@ -776,6 +817,87 @@
       signinModal.classList.remove('hidden');
     }
 
+// --- パスワード変更モーダル制御 ---
+    const changePwModal = document.getElementById('change-pw-modal');
+    const changePwForm = document.getElementById('change-pw-form');
+    const changePwError = document.getElementById('change-pw-error');
+    const changePwUserInfo = document.getElementById('change-pw-user-info');
+    const btnSubmitChangePw = document.getElementById('btn-submit-change-pw');
+    const btnUserProfile = document.getElementById('btn-user-profile');
+
+    // ユーザー名をクリックしたときにモーダルを開く
+    if (btnUserProfile) {
+      btnUserProfile.addEventListener('click', () => {
+        if (!authState.currentUser) return;
+        changePwUserInfo.value = `${authState.currentUser.name} (${authState.currentUser.userId})`;
+        changePwError.classList.add('hidden');
+        changePwForm.reset();
+        changePwModal.classList.remove('hidden');
+        document.getElementById('new-password-input').focus();
+      });
+    }
+
+    function closeChangePwModal() {
+      changePwModal.classList.add('hidden');
+      changePwForm.reset();
+    }
+
+    // パスワード変更送信処理
+    changePwForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      changePwError.classList.add('hidden');
+
+      const newPw = document.getElementById('new-password-input').value;
+      const confirmPw = document.getElementById('confirm-password-input').value;
+
+      if (newPw !== confirmPw) {
+        changePwError.textContent = 'パスワードが一致しません。もう一度ご確認ください。';
+        changePwError.classList.remove('hidden');
+        return;
+      }
+
+      if (newPw.length < 3) {
+        changePwError.textContent = 'パスワードは3文字以上で設定してください。';
+        changePwError.classList.remove('hidden');
+        return;
+      }
+
+      const gasUrl = getGasUrl();
+      btnSubmitChangePw.disabled = true;
+      btnSubmitChangePw.innerHTML = '<i class="fa-solid fa-spinner animate-spin"></i><span>更新中...</span>';
+
+      try {
+        const response = await fetch(gasUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+          body: JSON.stringify({
+            action: 'changePassword',
+            userId: authState.currentUser.userId,
+            newPassword: newPw
+          })
+        });
+
+        const res = await response.json();
+
+        if (!res.success) {
+          changePwError.textContent = res.message || 'パスワードの変更に失敗しました。';
+          changePwError.classList.remove('hidden');
+          return;
+        }
+
+        alert('パスワードを更新しました。次回から新しいパスワードでサインインしてください。');
+        closeChangePwModal();
+
+      } catch (err) {
+        console.error('パスワード変更通信エラー:', err);
+        changePwError.textContent = 'サーバーとの通信に失敗しました。ネットワーク環境をご確認ください。';
+        changePwError.classList.remove('hidden');
+      } finally {
+        btnSubmitChangePw.disabled = false;
+        btnSubmitChangePw.innerHTML = '<i class="fa-solid fa-check"></i><span>更新する</span>';
+      }
+    });
+    
     // ================= 2. モード切替制御（簡易モード / 通常モード） =================
     // デフォルトを 'simple'（簡易モード）に設定
     let currentUiMode = localStorage.getItem('d_saiten_ui_mode') || 'simple';
