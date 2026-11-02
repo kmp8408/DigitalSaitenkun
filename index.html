@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>でじたる採点くん Ver 3.7</title>
+  <title>でじたる採点くん Ver 4.0</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script>
@@ -28,7 +28,7 @@
     .student-card.active-card {
       outline: 3px solid #6366f1 !important;
       outline-offset: 2px;
-      transform: scale(1.02);
+      transform: scale(1.015);
       z-index: 10;
       box-shadow: 0 10px 25px -5px rgba(99, 102, 241, 0.4);
     }
@@ -53,6 +53,22 @@
     .box-drag-item.drag-over-bottom {
       border-bottom: 3px solid #38bdf8 !important;
     }
+
+    /* タイルサイズ5段階プリセット */
+    .grid-size-1 { grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); }
+    .grid-size-1 .peeking-window { height: 75px; }
+
+    .grid-size-2 { grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); }
+    .grid-size-2 .peeking-window { height: 95px; }
+
+    .grid-size-3 { grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); }
+    .grid-size-3 .peeking-window { height: 115px; }
+
+    .grid-size-4 { grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); }
+    .grid-size-4 .peeking-window { height: 160px; }
+
+    .grid-size-5 { grid-template-columns: repeat(auto-fill, minmax(460px, 1fr)); }
+    .grid-size-5 .peeking-window { height: 220px; }
   </style>
 </head>
 <body class="h-screen w-screen flex flex-col bg-slate-900 text-slate-100 overflow-hidden">
@@ -64,7 +80,7 @@
         <i class="fa-solid fa-pen-ruler text-xs"></i>
       </div>
       <span class="font-bold text-sm tracking-wide text-white">でじたる採点くん</span>
-      <span class="text-[10px] bg-slate-800 text-slate-400 px-2 py-0.5 rounded font-mono">Ver 3.7</span>
+      <span class="text-[10px] bg-slate-800 text-slate-400 px-2 py-0.5 rounded font-mono">Ver 4.0</span>
       <span id="autosave-indicator" class="text-[10px] text-emerald-400 flex items-center space-x-1 ml-2">
         <i class="fa-solid fa-cloud-arrow-up"></i><span>自動保存済</span>
       </span>
@@ -466,7 +482,7 @@
       </div>
     </div>
 
-    <!-- Step 2 サブバー -->
+    <!-- Step 2 サブバー（★5段階タイルサイズ切替UI追加） -->
     <div class="h-8 bg-slate-850 border-b border-slate-700 flex items-center justify-between px-4 text-xs shrink-0">
       <div class="flex items-center space-x-3 text-[11px]">
         <div><span class="text-slate-400">設問: </span><span id="s2-current-q-name" class="font-bold text-indigo-300 font-mono">-</span></div>
@@ -478,18 +494,31 @@
           <i class="fa-solid fa-triangle-exclamation text-xs"></i><span>系統不一致: <span id="s2-mismatch-count">0</span> 件</span>
         </div>
       </div>
-      <div class="flex items-center space-x-2 text-[11px]">
-        <span class="text-slate-400">表示絞り込み:</span>
-        <select id="s2-filter-status" class="bg-slate-900 border border-slate-600 rounded px-2 py-0.5 text-slate-200 outline-none">
-          <option value="all">全員分表示</option>
-          <option value="unmarked">未採点のみ</option>
-          <option value="marked">採点済みのみ</option>
-          <option value="mismatch" class="normal-mode-only hidden">系統不一致のみ</option>
-        </select>
+
+      <div class="flex items-center space-x-3 text-[11px]">
+        <!-- ★ 5段階タイルサイズ切替UI -->
+        <div class="flex items-center space-x-1 bg-slate-900 border border-slate-700 px-2 py-0.5 rounded-lg text-xs">
+          <span class="text-slate-400 text-[10px] font-bold"><i class="fa-solid fa-table-cells mr-1"></i>サイズ:</span>
+          <button type="button" class="btn-grid-size px-1.5 py-0.2 rounded text-[10px] font-bold text-slate-400 hover:text-white transition" data-size="1" title="極小（一覧性重視）">極小</button>
+          <button type="button" class="btn-grid-size px-1.5 py-0.2 rounded text-[10px] font-bold text-slate-400 hover:text-white transition" data-size="2" title="小（記号・短答）">小</button>
+          <button type="button" class="btn-grid-size px-1.5 py-0.2 rounded text-[10px] font-bold bg-indigo-600 text-white shadow transition" data-size="3" title="中（標準）">中</button>
+          <button type="button" class="btn-grid-size px-1.5 py-0.2 rounded text-[10px] font-bold text-slate-400 hover:text-white transition" data-size="4" title="大（記述式）">大</button>
+          <button type="button" class="btn-grid-size px-1.5 py-0.2 rounded text-[10px] font-bold text-slate-400 hover:text-white transition" data-size="5" title="特大（証明・長文）">特大</button>
+        </div>
+
+        <div class="flex items-center space-x-1.5">
+          <span class="text-slate-400">表示絞り込み:</span>
+          <select id="s2-filter-status" class="bg-slate-900 border border-slate-600 rounded px-2 py-0.5 text-slate-200 outline-none">
+            <option value="all">全員分表示</option>
+            <option value="unmarked">未採点のみ</option>
+            <option value="marked">採点済みのみ</option>
+            <option value="mismatch" class="normal-mode-only hidden">系統不一致のみ</option>
+          </select>
+        </div>
       </div>
     </div>
 
-    <!-- 採点タイルグリッド -->
+    <!-- 採点タイルグリッド（★可変グリッド対応） -->
     <main id="s2-grid-container" class="flex-1 overflow-y-auto p-4 bg-slate-950">
       <div id="s2-empty-workspace" class="h-full flex flex-col items-center justify-center text-center p-6">
         <div class="max-w-md bg-slate-800/80 p-8 rounded-2xl border border-slate-700 shadow-2xl backdrop-blur">
@@ -504,7 +533,7 @@
           </button>
         </div>
       </div>
-      <div id="s2-tiles-grid" class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-3 hidden"></div>
+      <div id="s2-tiles-grid" class="grid gap-3 grid-size-3 hidden"></div>
     </main>
   </div>
 
@@ -1085,6 +1114,7 @@
         filter: 'all',
         tileOffsets: {},
         modalViewPage: 1,
+        gridSize: parseInt(localStorage.getItem('d_saiten_grid_size'), 10) || 3, // ★ 5段階タイルサイズ (1〜5, デフォルト3: 中)
         stampState: {
           currentTool: 'hand',
           size: 'medium',
@@ -1292,6 +1322,7 @@
               questions: appState.s2.questions,
               metaBoxes: appState.s2.metaBoxes,
               isDoubleMode: appState.s2.isDoubleMode,
+              gridSize: appState.s2.gridSize,
               studentsSummary: appState.s2.students.map(std => ({
                 studentNum: std.studentNum,
                 name: std.name,
@@ -1363,6 +1394,9 @@
         appState.s2.metaBoxes = data.s2.metaBoxes || [];
         appState.s2.isDoubleMode = currentUiMode === 'normal' ? !!data.s2.isDoubleMode : false;
         s2DoubleModeToggle.checked = appState.s2.isDoubleMode;
+        if (data.s2.gridSize) {
+          applyTileSize(data.s2.gridSize);
+        }
 
         if (data.s2.studentsSummary && data.s2.studentsSummary.length > 0) {
           appState.s2.students = data.s2.studentsSummary.map(std => {
@@ -2849,7 +2883,123 @@
     s2BtnStream1.addEventListener('click', () => setS2Stream(1));
     s2BtnStream2.addEventListener('click', () => setS2Stream(2));
 
-    // ================= 11. 採点タイル描画 ＆ ホバー氏名ツールチップ =================
+    // ★ 5段階タイルサイズ切替処理
+    function applyTileSize(sizeNum) {
+      const size = Math.max(1, Math.min(5, parseInt(sizeNum, 10) || 3));
+      appState.s2.gridSize = size;
+      localStorage.setItem('d_saiten_grid_size', size);
+
+      // グリッドコンテナのクラスタグを差し替え
+      s2TilesGrid.className = s2TilesGrid.className.replace(/grid-size-\d/g, '').trim();
+      s2TilesGrid.classList.add(`grid-size-${size}`);
+
+      // ボタンのスタイル更新
+      document.querySelectorAll('.btn-grid-size').forEach(btn => {
+        const bSize = parseInt(btn.dataset.size, 10);
+        if (bSize === size) {
+          btn.className = 'btn-grid-size px-1.5 py-0.2 rounded text-[10px] font-bold bg-indigo-600 text-white shadow transition';
+        } else {
+          btn.className = 'btn-grid-size px-1.5 py-0.2 rounded text-[10px] font-bold text-slate-400 hover:text-white transition';
+        }
+      });
+
+      // 各タイルのCanvasサイズを再適合描画
+      const curQ = appState.s2.questions[appState.s2.currentQIndex];
+      if (curQ) {
+        requestAnimationFrame(() => {
+          document.querySelectorAll('#s2-tiles-grid .student-card').forEach(card => {
+            const idx = parseInt(card.dataset.index, 10);
+            const std = appState.s2.students[idx];
+            const canvasEl = card.querySelector('.tile-canvas');
+            if (canvasEl && std) {
+              const offset = appState.s2.tileOffsets[idx] || { x: 0, y: 0 };
+              drawPeekingTile(canvasEl, std, curQ, offset);
+            }
+          });
+        });
+      }
+    }
+
+    document.querySelectorAll('.btn-grid-size').forEach(btn => {
+      btn.addEventListener('click', () => {
+        applyTileSize(btn.dataset.size);
+      });
+    });
+
+    // ================= 11. 採点タイル描画 ＆ チカチカ防止部分更新エンジン =================
+    // 得点バッジHTML生成ヘルパー
+    function createScoreBadgeHtml(std, curQ) {
+      const s1 = std.scores1[curQ.id];
+      const s2 = std.scores2[curQ.id];
+      const isMarked1 = s1 !== null && s1 !== undefined;
+      const isMarked2 = s2 !== null && s2 !== undefined;
+      const isMismatch = (currentUiMode === 'normal') && isMarked1 && isMarked2 && s1 !== s2;
+
+      if (currentUiMode === 'normal' && appState.s2.isDoubleMode) {
+        const t1Text = isMarked1 ? `${s1}点` : '-';
+        const t2Text = isMarked2 ? `${s2}点` : '-';
+        if (isMismatch) {
+          return `<div class="bg-rose-600 text-white font-bold px-1.5 py-0.5 rounded text-[10px] flex items-center space-x-1 shadow animate-pulse">
+            <i class="fa-solid fa-triangle-exclamation"></i><span>${t1Text} vs ${t2Text}</span>
+          </div>`;
+        } else if (isMarked1 && isMarked2 && s1 === s2) {
+          return `<div class="bg-emerald-600 text-white font-bold px-1.5 py-0.5 rounded text-[10px] flex items-center space-x-1 shadow">
+            <i class="fa-solid fa-lock"></i><span>${s1}点 確定</span>
+          </div>`;
+        } else {
+          return `<div class="bg-slate-700 text-slate-300 font-semibold px-1.5 py-0.5 rounded text-[10px]">1:${t1Text} | 2:${t2Text}</div>`;
+        }
+      } else {
+        if (isMarked1) {
+          if (s1 === curQ.points) return `<div class="bg-emerald-600 text-white font-bold px-2 py-0.5 rounded text-xs flex items-center space-x-1 shadow"><i class="fa-solid fa-circle-check"></i><span>${s1}点</span></div>`;
+          else if (s1 === 0) return `<div class="bg-rose-600 text-white font-bold px-2 py-0.5 rounded text-xs flex items-center space-x-1 shadow"><i class="fa-solid fa-xmark"></i><span>0点</span></div>`;
+          else return `<div class="bg-amber-600 text-white font-bold px-2 py-0.5 rounded text-xs flex items-center space-x-1 shadow"><i class="fa-solid fa-pen-ruler"></i><span>${s1}点</span></div>`;
+        } else {
+          return `<div class="bg-slate-700 text-slate-400 font-semibold px-2 py-0.5 rounded text-xs">未採点</div>`;
+        }
+      }
+    }
+
+    // ★ チカチカを防止する単一生徒タイルのピンポイント更新
+    function updateStudentTileScore(studentIdx) {
+      const curQ = appState.s2.questions[appState.s2.currentQIndex];
+      const std = appState.s2.students[studentIdx];
+      if (!curQ || !std) return;
+
+      const card = document.querySelector(`#s2-tiles-grid .student-card[data-index="${studentIdx}"]`);
+      if (!card) return;
+
+      const badgeContainer = card.querySelector('.score-badge-container');
+      if (badgeContainer) {
+        badgeContainer.innerHTML = createScoreBadgeHtml(std, curQ);
+      }
+
+      // 不一致ボーダーの即時更新
+      const s1 = std.scores1[curQ.id];
+      const s2 = std.scores2[curQ.id];
+      const isMismatch = (currentUiMode === 'normal') && (s1 !== null && s1 !== undefined) && (s2 !== null && s2 !== undefined) && s1 !== s2;
+
+      if (isMismatch) {
+        card.classList.add('mismatch-card', 'border-rose-500', 'ring-1', 'ring-rose-500');
+        card.classList.remove('border-slate-700');
+      } else {
+        card.classList.remove('mismatch-card', 'border-rose-500', 'ring-1', 'ring-rose-500');
+        card.classList.add('border-slate-700');
+      }
+
+      // 不一致カウンター更新
+      if (currentUiMode === 'normal' && appState.s2.isDoubleMode) {
+        const mc = getMismatchCount();
+        if (mc > 0) {
+          s2MismatchCounterBox.classList.remove('hidden');
+          s2MismatchCountEl.textContent = mc;
+        } else {
+          s2MismatchCounterBox.classList.add('hidden');
+        }
+      }
+    }
+
+    // タイル一覧の全体生成（設問切替時やフィルタ切替時のみ実行）
     function renderS2Tiles() {
       if (appState.s2.students.length === 0) {
         s2EmptyWorkspace.classList.remove('hidden');
@@ -2863,6 +3013,10 @@
 
       const curQ = appState.s2.questions[appState.s2.currentQIndex];
       if (!curQ) return;
+
+      // 5段階タイルサイズクラスの適用
+      const currentSize = appState.s2.gridSize || 3;
+      s2TilesGrid.className = `grid gap-3 grid-size-${currentSize}`;
 
       let mismatchCount = 0;
 
@@ -2899,31 +3053,6 @@
           }
         };
 
-        let badgeHtml = '';
-        if (currentUiMode === 'normal' && appState.s2.isDoubleMode) {
-          const t1Text = isMarked1 ? `${s1}点` : '-';
-          const t2Text = isMarked2 ? `${s2}点` : '-';
-          if (isMismatch) {
-            badgeHtml = `<div class="bg-rose-600 text-white font-bold px-1.5 py-0.5 rounded text-[10px] flex items-center space-x-1 shadow animate-pulse">
-              <i class="fa-solid fa-triangle-exclamation"></i><span>${t1Text} vs ${t2Text}</span>
-            </div>`;
-          } else if (isMarked1 && isMarked2 && s1 === s2) {
-            badgeHtml = `<div class="bg-emerald-600 text-white font-bold px-1.5 py-0.5 rounded text-[10px] flex items-center space-x-1 shadow">
-              <i class="fa-solid fa-lock"></i><span>${s1}点 確定</span>
-            </div>`;
-          } else {
-            badgeHtml = `<div class="bg-slate-700 text-slate-300 font-semibold px-1.5 py-0.5 rounded text-[10px]">1:${t1Text} | 2:${t2Text}</div>`;
-          }
-        } else {
-          if (isMarked1) {
-            if (s1 === curQ.points) badgeHtml = `<div class="bg-emerald-600 text-white font-bold px-2 py-0.5 rounded text-xs flex items-center space-x-1 shadow"><i class="fa-solid fa-circle-check"></i><span>${s1}点</span></div>`;
-            else if (s1 === 0) badgeHtml = `<div class="bg-rose-600 text-white font-bold px-2 py-0.5 rounded text-xs flex items-center space-x-1 shadow"><i class="fa-solid fa-xmark"></i><span>0点</span></div>`;
-            else badgeHtml = `<div class="bg-amber-600 text-white font-bold px-2 py-0.5 rounded text-xs flex items-center space-x-1 shadow"><i class="fa-solid fa-pen-ruler"></i><span>${s1}点</span></div>`;
-          } else {
-            badgeHtml = `<div class="bg-slate-700 text-slate-400 font-semibold px-2 py-0.5 rounded text-xs">未採点</div>`;
-          }
-        }
-
         const offset = appState.s2.tileOffsets[idx] || { x: 0, y: 0 };
 
         card.innerHTML = `
@@ -2932,9 +3061,9 @@
               <i class="fa-solid fa-user text-[10px] text-teal-400"></i>
               <span>#${std.studentNum}</span>
             </span>
-            ${badgeHtml}
+            <div class="score-badge-container">${createScoreBadgeHtml(std, curQ)}</div>
           </div>
-          <div class="peeking-window relative h-28 bg-white rounded border border-slate-600 overflow-hidden shadow-inner" data-index="${idx}">
+          <div class="peeking-window relative bg-white rounded border border-slate-600 overflow-hidden shadow-inner" data-index="${idx}">
             <canvas class="tile-canvas block w-full h-full pointer-events-none"></canvas>
             <div class="absolute bottom-1 right-1 bg-slate-900/70 text-slate-300 text-[9px] px-1 py-0.2 rounded font-mono pointer-events-none">
               ${offset.x !== 0 || offset.y !== 0 ? 'ずらし中' : 'ドラッグ可'}
@@ -3003,8 +3132,8 @@
 
     function drawPeekingTile(canvasEl, student, question, offset) {
       const ctx = canvasEl.getContext('2d');
-      const w = canvasEl.clientWidth || 240;
-      const h = canvasEl.clientHeight || 112;
+      const w = canvasEl.clientWidth || 260;
+      const h = canvasEl.clientHeight || 115;
       canvasEl.width = w;
       canvasEl.height = h;
 
@@ -3144,15 +3273,18 @@
       if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') { e.preventDefault(); moveS2Active(-1); return; }
     });
 
+    // ★ チカチカしない高速ピンポイント採点処理
     function assignS2Score(score) {
       const curQ = appState.s2.questions[appState.s2.currentQIndex];
-      const student = appState.s2.students[appState.s2.activeStudentIndex];
+      const currentIdx = appState.s2.activeStudentIndex;
+      const student = appState.s2.students[currentIdx];
       if (!student) return;
 
       if (appState.s2.currentStream === 1) student.scores1[curQ.id] = score;
       else student.scores2[curQ.id] = score;
 
-      renderS2Tiles();
+      // 全体再生成を行わず、該当生徒のタイルのみピンポイント更新
+      updateStudentTileScore(currentIdx);
       updateS2Progress();
       triggerAutoSave();
       moveS2Active(1);
@@ -4132,7 +4264,7 @@
       setTimeout(() => {
         try {
           const exportData = {
-            version: "3.7",
+            version: "4.0",
             appName: "でじたる採点くん",
             createdAt: new Date().toISOString(),
             pagesPerStudent: appState.s1.pagesPerStudent,
@@ -4178,6 +4310,7 @@
     // 起動時のセッション確認とモード初期適用
     window.addEventListener('DOMContentLoaded', () => {
       applyUiMode(currentUiMode);
+      applyTileSize(appState.s2.gridSize);
       checkAuthSession();
     });
   </script>
