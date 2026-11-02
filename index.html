@@ -230,7 +230,7 @@
         </div>
       </div>
 
-      <!-- Step 1 サイドバー -->
+<!-- Step 1 サイドバー -->
       <div class="w-80 bg-slate-800 border-l border-slate-700 flex flex-col shrink-0 z-20 text-xs">
         <div class="p-3 border-b border-slate-700 bg-slate-800/95 flex flex-col space-y-2">
           <div class="flex items-center justify-between">
@@ -567,7 +567,7 @@
     </div>
   </div>
 
-  <!-- 拡大モーダル（高さ固定版） -->
+  <!-- 拡大モーダル（高さ固定版 ＋ スタンプツールバー） -->
   <div id="zoom-modal" class="fixed inset-0 bg-slate-950/85 backdrop-blur-sm z-50 flex flex-col items-center justify-center p-4 hidden">
     <div class="relative bg-slate-900 border border-slate-700 rounded-2xl p-4 shadow-2xl w-full max-w-5xl h-[85vh] flex flex-col overflow-hidden">
       <div class="w-full flex justify-between items-center mb-3 shrink-0">
@@ -583,6 +583,70 @@
             <i class="fa-solid fa-expand text-slate-400"></i><span>用紙全体</span>
           </button>
           <button onclick="closeModal()" class="text-slate-400 hover:text-white p-1 text-xl ml-2"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+      </div>
+
+      <!-- スタンプ・書き込みツールバー -->
+      <div id="stamp-toolbar" class="w-full bg-slate-800/90 border border-slate-700 rounded-xl px-3 py-1.5 mb-2.5 flex items-center justify-between text-xs shrink-0 select-none shadow">
+        <!-- ツール選択ボタン群 -->
+        <div class="flex items-center space-x-1 overflow-x-auto">
+          <span class="text-[10px] text-slate-400 font-bold mr-1 shrink-0"><i class="fa-solid fa-stamp text-amber-400 mr-1"></i>スタンプ:</span>
+          
+          <button type="button" data-tool="hand" class="stamp-tool-btn px-2.5 py-1 rounded-lg font-bold bg-indigo-600 text-white transition flex items-center space-x-1 shrink-0" title="用紙の移動・拡大縮小（スタンプなし）">
+            <i class="fa-solid fa-hand text-[11px]"></i><span>移動</span>
+          </button>
+
+          <div class="w-px h-4 bg-slate-700 mx-1 shrink-0"></div>
+
+          <button type="button" data-tool="bracket" class="stamp-tool-btn px-2.5 py-1 rounded-lg font-bold bg-slate-900 text-rose-400 hover:bg-slate-700 transition flex items-center space-x-1 shrink-0 font-mono" title="カッコおわり（右下）">
+            <span class="text-sm font-black leading-none">」</span><span>カッコ</span>
+          </button>
+          <button type="button" data-tool="bracket_rev" class="stamp-tool-btn px-2.5 py-1 rounded-lg font-bold bg-slate-900 text-rose-400 hover:bg-slate-700 transition flex items-center space-x-1 shrink-0 font-mono" title="縦書き用 反転カッコ（左下）">
+            <span class="text-sm font-black leading-none" style="display:inline-block; transform: scaleX(-1);">」</span><span>反転</span>
+          </button>
+
+          <button type="button" data-tool="circle" class="stamp-tool-btn px-2.5 py-1 rounded-lg font-bold bg-slate-900 text-rose-400 hover:bg-slate-700 transition flex items-center space-x-1 shrink-0" title="丸マーク">
+            <i class="fa-regular fa-circle text-xs"></i><span>丸</span>
+          </button>
+          <button type="button" data-tool="wrong" class="stamp-tool-btn px-2.5 py-1 rounded-lg font-bold bg-slate-900 text-rose-400 hover:bg-slate-700 transition flex items-center space-x-1 shrink-0" title="バツマーク">
+            <i class="fa-solid fa-xmark text-xs"></i><span>バツ</span>
+          </button>
+          <button type="button" data-tool="triangle" class="stamp-tool-btn px-2.5 py-1 rounded-lg font-bold bg-slate-900 text-rose-400 hover:bg-slate-700 transition flex items-center space-x-1 shrink-0" title="三角マーク">
+            <span class="text-xs">▲</span><span>三角</span>
+          </button>
+
+          <button type="button" data-tool="line" class="stamp-tool-btn px-2.5 py-1 rounded-lg font-bold bg-slate-900 text-rose-400 hover:bg-slate-700 transition flex items-center space-x-1 shrink-0" title="直線（Shift押しながらで水平・垂直固定）">
+            <i class="fa-solid fa-slash text-xs"></i><span>ライン</span>
+          </button>
+
+          <div class="w-px h-4 bg-slate-700 mx-1 shrink-0"></div>
+
+          <!-- 文字列スタンプ -->
+          <div class="flex items-center space-x-1 shrink-0 bg-slate-900 px-1.5 py-0.5 rounded-lg border border-slate-700">
+            <button type="button" data-tool="text" class="stamp-tool-btn px-2 py-0.5 rounded font-bold text-rose-400 hover:bg-slate-800 transition flex items-center space-x-1" title="文字スタンプ">
+              <i class="fa-solid fa-font text-xs"></i><span>文字</span>
+            </button>
+            <input type="text" id="stamp-custom-text" value="説明不足" class="w-24 bg-slate-950 border border-slate-700 rounded px-1.5 py-0.5 text-rose-300 font-bold text-[11px] outline-none focus:border-rose-500" placeholder="文字列">
+          </div>
+        </div>
+
+        <!-- サイズ指定 ＆ アンドゥ -->
+        <div class="flex items-center space-x-2 shrink-0 ml-2">
+          <!-- サイズ指定 -->
+          <div class="flex items-center space-x-1 bg-slate-900 px-2 py-0.5 rounded-lg border border-slate-700 text-[11px]">
+            <span class="text-slate-400">サイズ:</span>
+            <button type="button" data-size="small" class="stamp-size-btn px-1.5 py-0.2 rounded font-bold text-slate-400 hover:text-white transition">小</button>
+            <button type="button" data-size="medium" class="stamp-size-btn px-1.5 py-0.2 rounded font-bold bg-indigo-600 text-white shadow">中</button>
+            <button type="button" data-size="large" class="stamp-size-btn px-1.5 py-0.2 rounded font-bold text-slate-400 hover:text-white transition">大</button>
+          </div>
+
+          <!-- アンドゥ・全消去 -->
+          <button type="button" id="btn-undo-stamp" class="px-2 py-1 bg-slate-700 hover:bg-slate-600 text-slate-200 rounded font-semibold transition flex items-center space-x-1" title="直前のスタンプを1つ戻す (Ctrl+Z)">
+            <i class="fa-solid fa-rotate-left text-[11px]"></i><span>戻す</span>
+          </button>
+          <button type="button" id="btn-clear-stamps" class="px-2 py-1 bg-slate-700 hover:bg-rose-900/60 text-slate-300 hover:text-rose-200 rounded font-semibold transition flex items-center space-x-1" title="このページの書き込みを全消去">
+            <i class="fa-solid fa-trash-can text-[11px]"></i>
+          </button>
         </div>
       </div>
 
@@ -615,8 +679,8 @@
     <h3 id="loading-title" class="font-bold text-white text-base mb-1">処理中...</h3>
     <p id="loading-subtitle" class="text-xs text-slate-400 font-mono">しばらくお待ちください</p>
   </div>
-  
-<!-- ================= パスワード変更モーダル ================= -->
+
+  <!-- ================= パスワード変更モーダル ================= -->
   <div id="change-pw-modal" class="fixed inset-0 bg-slate-950/85 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
     <div class="bg-slate-900 border border-slate-700 rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden">
       <div class="px-5 py-4 bg-slate-800 border-b border-slate-700 flex justify-between items-center">
@@ -650,7 +714,7 @@
       </form>
     </div>
   </div>
-  
+
   <!-- ================= サインインモーダル ================= -->
   <div id="signin-modal" class="fixed inset-0 bg-slate-950/95 backdrop-blur-md z-50 flex items-center justify-center p-4">
     <div class="bg-slate-900 border border-slate-700 rounded-2xl shadow-2xl w-full max-w-md overflow-hidden">
@@ -694,14 +758,15 @@
     </div>
   </div>
 
-  <!-- ================= JavaScript アプリケーションコア ================= -->
+<!-- ================= JavaScript アプリケーションコア ================= -->
   <script>
     if (window.pdfjsLib) {
       window.pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
     }
 
     // ================= 1. Googleスプレッドシート（GAS）認証 ＆ ログ連携 =================
-    const DEFAULT_GAS_URL = "https://script.google.com/macros/s/AKfycbX7pE6YR9Cd1g9Sc-FNklXcWFQvhpnNJ9k8ozxBVA4HXWlw_wQLl6y0Z9eR1Aq10B1/exec";
+    // ※ 正しい本番用GAS URL（zを含む完全版）
+    const DEFAULT_GAS_URL = "https://script.google.com/macros/s/AKfycbzX7pE6YR9Cd1g9Sc-FNklXcWFQvhpnNJ9k8ozxBVA4HXWlw_wQLl6y0Z9eR1Aq10B1/exec";
 
     function getGasUrl() {
       return localStorage.getItem('d_saiten_gas_url') || DEFAULT_GAS_URL;
@@ -812,7 +877,7 @@
       signinModal.classList.remove('hidden');
     }
 
-// --- パスワード変更モーダル制御 ---
+    // --- パスワード変更モーダル制御 ---
     const changePwModal = document.getElementById('change-pw-modal');
     const changePwForm = document.getElementById('change-pw-form');
     const changePwError = document.getElementById('change-pw-error');
@@ -897,9 +962,8 @@
         btnSubmitChangePw.innerHTML = '<i class="fa-solid fa-check"></i><span>更新する</span>';
       }
     });
-    
+
     // ================= 2. モード切替制御（簡易モード / 通常モード） =================
-    // デフォルトを 'simple'（簡易モード）に設定
     let currentUiMode = localStorage.getItem('d_saiten_ui_mode') || 'simple';
 
     const btnModeSimple = document.getElementById('btn-mode-simple');
@@ -924,11 +988,9 @@
         btnModeNormal.className = 'px-2.5 py-0.5 rounded text-[11px] font-bold transition text-slate-400 hover:text-slate-200';
       }
 
-      // 通常モード専用要素の表示・非表示切替
       document.querySelectorAll('.normal-mode-only').forEach(el => {
         if (isNormal) {
           el.classList.remove('hidden');
-          // flex を持つコンテナを正しく表示
           if (el.id === 's1-aspect-switch-container' || el.id === 's1-aspect-summary-container' || 
               el.id === 's2-double-stream-container' || el.id === 's2-current-stream-container') {
             el.classList.add('flex');
@@ -939,18 +1001,14 @@
         }
       });
 
-      // 簡易モード時の制御
       if (!isNormal) {
-        // 観点評価を強制OFF
         appState.s1.enableAspect = false;
         s1AspectSwitch.checked = false;
 
-        // ダブル採点を強制OFF、系統1に固定
         appState.s2.isDoubleMode = false;
         s2DoubleModeToggle.checked = false;
         setS2Stream(1);
 
-        // 絞り込みオプションがmismatchになっていれば全員表示に戻す
         if (appState.s2.filter === 'mismatch') {
           appState.s2.filter = 'all';
           document.getElementById('s2-filter-status').value = 'all';
@@ -1005,7 +1063,7 @@
         currentCategory: 'question',
         isSpaceDown: false,
         isShiftDown: false,
-        enableAspect: false,    // デフォルトOFF
+        enableAspect: false,
         boxes: [],
         selectedIds: [],
         interactionMode: null,
@@ -1026,7 +1084,15 @@
         students: [],
         filter: 'all',
         tileOffsets: {},
-        modalViewPage: 1
+        modalViewPage: 1,
+        stampState: {
+          currentTool: 'hand',
+          size: 'medium',
+          customText: '説明不足',
+          isDrawingLine: false,
+          lineStart: null,
+          tempLineEnd: null
+        }
       },
       rotation: {
         angle: 0,
@@ -1231,7 +1297,8 @@
                 name: std.name,
                 scores1: std.scores1,
                 scores2: std.scores2,
-                fullPageImages: std.fullPageImages
+                fullPageImages: std.fullPageImages,
+                annotations: std.annotations || []
               }))
             }
           };
@@ -1304,7 +1371,7 @@
               img.src = url;
               return img;
             });
-            return { ...std, fullPageImgElements: elements };
+            return { ...std, fullPageImgElements: elements, annotations: std.annotations || [] };
           });
           initS2QuestionSelect();
           switchTab(2);
@@ -1404,7 +1471,7 @@
       triggerAutoSave();
     }
 
-    // ================= 7. 90度回転補正システム =================
+// ================= 7. 90度回転補正システム =================
     function openRotationModal(title, sourceCanvases, onConfirmCallback) {
       appState.rotation.angle = 0;
       appState.rotation.tempCanvases = sourceCanvases;
@@ -2297,7 +2364,6 @@
           document.getElementById('s1-points-container').style.display = isQuestion ? 'block' : 'none';
           document.getElementById('s1-rubric-container').style.display = isQuestion ? 'block' : 'none';
 
-          // 通常モード時のみ観点別評価ボタンを表示
           if (currentUiMode === 'normal') {
             s1AspectFieldContainer.style.display = (isQuestion && appState.s1.enableAspect) ? 'block' : 'none';
           } else {
@@ -3117,7 +3183,7 @@
       renderS2Tiles();
     });
 
-    // ================= 13. 拡大モーダル制御 =================
+    // ================= 13. 拡大モーダル制御 ＆ スタンプ描画エンジン =================
     let modalTransform = { scale: 1, panX: 0, panY: 0, isDragging: false, startX: 0, startY: 0 };
     let activeModalImage = null;
 
@@ -3238,6 +3304,93 @@
     btnModalResetView.onclick = resetModalViewToQuestion;
     btnModalFitView.onclick = fitModalViewToPaper;
 
+    // スタンプの基準サイズ計算
+    function getAnnotationSizePixels(sizeType, imgWidth) {
+      const base = imgWidth * 0.025;
+      if (sizeType === 'small') return base * 0.65;
+      if (sizeType === 'large') return base * 1.55;
+      return base;
+    }
+
+    // スタンプ単体の描画関数（Canvas描画）
+    function drawSingleAnnotation(ctx, annot, imgW, imgH) {
+      const color = annot.color || '#dc2626';
+      ctx.save();
+      ctx.strokeStyle = color;
+      ctx.fillStyle = color;
+
+      const px = annot.x * imgW;
+      const py = annot.y * imgH;
+      const sz = annot.sizePixels || getAnnotationSizePixels(annot.size || 'medium', imgW);
+
+      ctx.lineWidth = Math.max(2.5, Math.round(sz * 0.12));
+      ctx.lineCap = 'round';
+      ctx.lineJoin = 'round';
+
+      switch (annot.type) {
+        case 'bracket': {
+          ctx.beginPath();
+          ctx.moveTo(px - sz * 0.6, py);
+          ctx.lineTo(px, py);
+          ctx.lineTo(px, py - sz * 0.9);
+          ctx.stroke();
+          break;
+        }
+        case 'bracket_rev': {
+          ctx.beginPath();
+          ctx.moveTo(px + sz * 0.6, py);
+          ctx.lineTo(px, py);
+          ctx.lineTo(px, py - sz * 0.9);
+          ctx.stroke();
+          break;
+        }
+        case 'circle': {
+          ctx.beginPath();
+          ctx.arc(px, py, sz * 0.5, 0, Math.PI * 2);
+          ctx.stroke();
+          break;
+        }
+        case 'wrong': {
+          const r = sz * 0.45;
+          ctx.beginPath();
+          ctx.moveTo(px - r, py - r);
+          ctx.lineTo(px + r, py + r);
+          ctx.moveTo(px + r, py - r);
+          ctx.lineTo(px - r, py + r);
+          ctx.stroke();
+          break;
+        }
+        case 'triangle': {
+          const h = sz * 0.5;
+          ctx.beginPath();
+          ctx.moveTo(px, py - h);
+          ctx.lineTo(px + h * 0.9, py + h * 0.7);
+          ctx.lineTo(px - h * 0.9, py + h * 0.7);
+          ctx.closePath();
+          ctx.stroke();
+          break;
+        }
+        case 'line': {
+          if (annot.x2 !== undefined && annot.y2 !== undefined) {
+            ctx.beginPath();
+            ctx.moveTo(px, py);
+            ctx.lineTo(annot.x2 * imgW, annot.y2 * imgH);
+            ctx.stroke();
+          }
+          break;
+        }
+        case 'text': {
+          const fontSize = Math.max(14, Math.round(sz * 0.75));
+          ctx.font = `bold ${fontSize}px sans-serif`;
+          ctx.textBaseline = 'middle';
+          ctx.fillText(annot.text || '', px, py);
+          break;
+        }
+      }
+      ctx.restore();
+    }
+
+    // 拡大モーダル Canvas描画（用紙＋スタンプ＋設問枠）
     function renderModalZoomCanvas() {
       const img = activeModalImage;
       if (!img || !img.complete || img.naturalWidth === 0) return;
@@ -3254,10 +3407,33 @@
       modalZoomCtx.translate(modalTransform.panX, modalTransform.panY);
       modalZoomCtx.scale(modalTransform.scale, modalTransform.scale);
 
+      // ① 用紙画像の描画
       modalZoomCtx.fillStyle = '#ffffff';
       modalZoomCtx.fillRect(0, 0, img.naturalWidth, img.naturalHeight);
       modalZoomCtx.drawImage(img, 0, 0);
 
+      // ② 生徒のスタンプ・書き込み描画
+      const student = appState.s2.students[appState.s2.activeStudentIndex];
+      if (student && student.annotations) {
+        student.annotations.filter(a => a.page === appState.s2.modalViewPage).forEach(annot => {
+          drawSingleAnnotation(modalZoomCtx, annot, img.naturalWidth, img.naturalHeight);
+        });
+      }
+
+      // ③ 直線ドラッグ中のリアルタイム描画
+      if (appState.s2.stampState && appState.s2.stampState.isDrawingLine && appState.s2.stampState.lineStart && appState.s2.stampState.tempLineEnd) {
+        drawSingleAnnotation(modalZoomCtx, {
+          type: 'line',
+          x: appState.s2.stampState.lineStart.x,
+          y: appState.s2.stampState.lineStart.y,
+          x2: appState.s2.stampState.tempLineEnd.x,
+          y2: appState.s2.stampState.tempLineEnd.y,
+          size: appState.s2.stampState.size,
+          color: '#dc2626'
+        }, img.naturalWidth, img.naturalHeight);
+      }
+
+      // ④ 設問フォーカス枠の描画
       const curQ = appState.s2.questions[appState.s2.currentQIndex];
       if (curQ && (curQ.page || 1) === appState.s2.modalViewPage && curQ.normalized) {
         const qx = curQ.normalized.x * img.naturalWidth;
@@ -3286,26 +3462,219 @@
       activeModalImage = null;
     }
 
+// ツールバーのボタン切り替え設定
+    document.querySelectorAll('.stamp-tool-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const tool = btn.dataset.tool;
+        if (!tool) return;
+        appState.s2.stampState.currentTool = tool;
+
+        document.querySelectorAll('.stamp-tool-btn').forEach(b => {
+          b.classList.remove('bg-indigo-600', 'text-white', 'shadow');
+          if (b.dataset.tool === 'hand') {
+            b.classList.add('bg-slate-800', 'text-slate-300');
+          } else {
+            b.classList.add('bg-slate-900', 'text-rose-400');
+          }
+        });
+
+        btn.classList.remove('bg-slate-900', 'bg-slate-800', 'text-rose-400', 'text-slate-300');
+        btn.classList.add('bg-indigo-600', 'text-white', 'shadow');
+
+        if (tool === 'hand') {
+          modalViewport.classList.remove('cursor-crosshair');
+          modalViewport.classList.add('cursor-grab');
+        } else {
+          modalViewport.classList.remove('cursor-grab', 'cursor-grabbing');
+          modalViewport.classList.add('cursor-crosshair');
+        }
+      });
+    });
+
+    // サイズボタンの切り替え
+    document.querySelectorAll('.stamp-size-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        appState.s2.stampState.size = btn.dataset.size;
+        document.querySelectorAll('.stamp-size-btn').forEach(b => {
+          b.classList.remove('bg-indigo-600', 'text-white', 'shadow');
+          b.classList.add('text-slate-400');
+        });
+        btn.classList.remove('text-slate-400');
+        btn.classList.add('bg-indigo-600', 'text-white', 'shadow');
+      });
+    });
+
+    // カスタムテキスト入力
+    const stampCustomTextInput = document.getElementById('stamp-custom-text');
+    if (stampCustomTextInput) {
+      stampCustomTextInput.addEventListener('input', (e) => {
+        appState.s2.stampState.customText = e.target.value.trim() || '済';
+      });
+      stampCustomTextInput.addEventListener('keydown', (e) => e.stopPropagation());
+    }
+
+    // アンドゥ（1つ戻す）
+    function undoLastStamp() {
+      const student = appState.s2.students[appState.s2.activeStudentIndex];
+      if (!student || !student.annotations || student.annotations.length === 0) return;
+      const curPage = appState.s2.modalViewPage;
+      for (let i = student.annotations.length - 1; i >= 0; i--) {
+        if (student.annotations[i].page === curPage) {
+          student.annotations.splice(i, 1);
+          renderModalZoomCanvas();
+          triggerAutoSave();
+          break;
+        }
+      }
+    }
+    const btnUndoStamp = document.getElementById('btn-undo-stamp');
+    if (btnUndoStamp) btnUndoStamp.addEventListener('click', undoLastStamp);
+
+    // 全消去
+    const btnClearStamps = document.getElementById('btn-clear-stamps');
+    if (btnClearStamps) {
+      btnClearStamps.addEventListener('click', () => {
+        const student = appState.s2.students[appState.s2.activeStudentIndex];
+        if (!student || !student.annotations || student.annotations.length === 0) return;
+        const curPage = appState.s2.modalViewPage;
+        if (confirm(`P.${curPage} のすべてのスタンプ・書き込みを消去しますか？`)) {
+          student.annotations = student.annotations.filter(a => a.page !== curPage);
+          renderModalZoomCanvas();
+          triggerAutoSave();
+        }
+      });
+    }
+
+    // 画面座標を用紙の相対座標(0.0〜1.0)へ変換
+    function modalScreenToPaperCoords(clientX, clientY) {
+      const img = activeModalImage;
+      if (!img || img.naturalWidth === 0) return { x: 0, y: 0 };
+      const rect = modalViewport.getBoundingClientRect();
+      const screenX = clientX - rect.left;
+      const screenY = clientY - rect.top;
+      const paperX = (screenX - modalTransform.panX) / modalTransform.scale;
+      const paperY = (screenY - modalTransform.panY) / modalTransform.scale;
+      return {
+        x: Math.max(0, Math.min(1, +(paperX / img.naturalWidth).toFixed(5))),
+        y: Math.max(0, Math.min(1, +(paperY / img.naturalHeight).toFixed(5)))
+      };
+    }
+
+    // モーダル マウスイベント（移動 ＆ スタンプ配置）
     modalViewport.addEventListener('mousedown', (e) => {
       if (e.button !== 0) return;
-      modalTransform.isDragging = true;
-      modalTransform.startX = e.clientX - modalTransform.panX;
-      modalTransform.startY = e.clientY - modalTransform.panY;
-      modalViewport.classList.add('cursor-grabbing');
-      e.preventDefault();
+      const tool = appState.s2.stampState ? appState.s2.stampState.currentTool : 'hand';
+
+      if (tool === 'hand') {
+        modalTransform.isDragging = true;
+        modalTransform.startX = e.clientX - modalTransform.panX;
+        modalTransform.startY = e.clientY - modalTransform.panY;
+        modalViewport.classList.remove('cursor-grab');
+        modalViewport.classList.add('cursor-grabbing');
+        e.preventDefault();
+        return;
+      }
+
+      const pt = modalScreenToPaperCoords(e.clientX, e.clientY);
+      const student = appState.s2.students[appState.s2.activeStudentIndex];
+      if (!student) return;
+      if (!student.annotations) student.annotations = [];
+
+      if (tool === 'line') {
+        appState.s2.stampState.isDrawingLine = true;
+        appState.s2.stampState.lineStart = pt;
+        appState.s2.stampState.tempLineEnd = pt;
+      } else {
+        student.annotations.push({
+          page: appState.s2.modalViewPage,
+          type: tool,
+          x: pt.x,
+          y: pt.y,
+          size: appState.s2.stampState.size,
+          color: '#dc2626',
+          text: tool === 'text' ? appState.s2.stampState.customText : ''
+        });
+        renderModalZoomCanvas();
+        triggerAutoSave();
+      }
     });
 
     window.addEventListener('mousemove', (e) => {
-      if (!modalTransform.isDragging) return;
-      modalTransform.panX = e.clientX - modalTransform.startX;
-      modalTransform.panY = e.clientY - modalTransform.startY;
-      renderModalZoomCanvas();
+      if (zoomModal.classList.contains('hidden')) return;
+
+      if (modalTransform.isDragging) {
+        modalTransform.panX = e.clientX - modalTransform.startX;
+        modalTransform.panY = e.clientY - modalTransform.startY;
+        renderModalZoomCanvas();
+        return;
+      }
+
+      if (appState.s2.stampState && appState.s2.stampState.isDrawingLine && appState.s2.stampState.lineStart) {
+        let pt = modalScreenToPaperCoords(e.clientX, e.clientY);
+
+        // Shiftキーで水平・垂直固定スナップ
+        if (e.shiftKey) {
+          const start = appState.s2.stampState.lineStart;
+          const dx = Math.abs(pt.x - start.x);
+          const dy = Math.abs(pt.y - start.y);
+          if (dx > dy) {
+            pt.y = start.y;
+          } else {
+            pt.x = start.x;
+          }
+        }
+
+        appState.s2.stampState.tempLineEnd = pt;
+        renderModalZoomCanvas();
+      }
     });
 
     window.addEventListener('mouseup', () => {
+      if (zoomModal.classList.contains('hidden')) return;
+
       if (modalTransform.isDragging) {
         modalTransform.isDragging = false;
         modalViewport.classList.remove('cursor-grabbing');
+        if (appState.s2.stampState && appState.s2.stampState.currentTool === 'hand') {
+          modalViewport.classList.add('cursor-grab');
+        }
+      }
+
+      if (appState.s2.stampState && appState.s2.stampState.isDrawingLine && appState.s2.stampState.lineStart && appState.s2.stampState.tempLineEnd) {
+        const start = appState.s2.stampState.lineStart;
+        const end = appState.s2.stampState.tempLineEnd;
+
+        if (Math.hypot(end.x - start.x, end.y - start.y) > 0.005) {
+          const student = appState.s2.students[appState.s2.activeStudentIndex];
+          if (student) {
+            if (!student.annotations) student.annotations = [];
+            student.annotations.push({
+              page: appState.s2.modalViewPage,
+              type: 'line',
+              x: start.x,
+              y: start.y,
+              x2: end.x,
+              y2: end.y,
+              size: appState.s2.stampState.size,
+              color: '#dc2626'
+            });
+            triggerAutoSave();
+          }
+        }
+        appState.s2.stampState.isDrawingLine = false;
+        appState.s2.stampState.lineStart = null;
+        appState.s2.stampState.tempLineEnd = null;
+        renderModalZoomCanvas();
+      }
+    });
+
+    // Ctrl+Z で直前のスタンプを取り消し
+    window.addEventListener('keydown', (e) => {
+      if (!zoomModal.classList.contains('hidden')) {
+        if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') {
+          e.preventDefault();
+          undoLastStamp();
+        }
       }
     });
 
@@ -3489,7 +3858,8 @@
               fullPageImages: stdImages,
               fullPageImgElements: stdImgElements,
               scores1: stdScores1,
-              scores2: stdScores2
+              scores2: stdScores2,
+              annotations: []
             });
           }
 
@@ -3585,7 +3955,7 @@
       XLSX.writeFile(wb, `marking_results_${new Date().toISOString().slice(0, 10)}.xlsx`);
     });
 
-    // 生徒返却用PDF一括生成
+    // 生徒返却用PDF一括生成（〇×・総合得点 ＋ スタンプ・アノテーション自動合成）
     document.getElementById('s2-export-return-pdf-btn').addEventListener('click', async () => {
       if (appState.s2.students.length === 0) { alert('出力対象の答案データがありません。'); return; }
 
@@ -3609,7 +3979,7 @@
       }
 
       const pagesPerStudent = appState.s2.pagesPerStudent || 1;
-      showLoading('生徒返却用PDFを生成中...', '答案画像を合成中...');
+      showLoading('生徒返却用PDFを生成中...', '答案画像とスタンプを合成中...');
 
       try {
         const sortedStudents = [...appState.s2.students].sort((a, b) => (Number(a.studentNum) || 0) - (Number(b.studentNum) || 0));
@@ -3643,10 +4013,18 @@
             drawCtx.clearRect(0, 0, drawCanvas.width, drawCanvas.height);
             drawCtx.drawImage(fullImg, 0, 0);
 
+            // ★ スタンプ・アノテーションの自動合成描画
+            if (std.annotations && std.annotations.length > 0) {
+              std.annotations.filter(a => a.page === p).forEach(annot => {
+                drawSingleAnnotation(drawCtx, annot, drawCanvas.width, drawCanvas.height);
+              });
+            }
+
             drawCtx.strokeStyle = '#dc2626';
             drawCtx.fillStyle = '#dc2626';
             drawCtx.lineWidth = Math.max(3, Math.round(drawCanvas.width * 0.0035));
 
+            // 〇×・部分点記号の印字
             appState.s2.questions.filter(q => (q.page || 1) === p).forEach(q => {
               const score = std.scores1[q.id];
               if (score !== null && score !== undefined) {
@@ -3686,6 +4064,7 @@
               }
             });
 
+            // 表面（P.1）への合計点・観点別評価の印字
             if (p === 1) {
               appState.s2.metaBoxes.forEach(mb => {
                 const norm = mb.normalized;
