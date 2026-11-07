@@ -1365,56 +1365,78 @@
       }
     }
 
-    function restoreSession(data) {
-      if (data.s1) {
-        appState.s1.pagesPerStudent = data.s1.pagesPerStudent || 1;
-        appState.s1.boxes = data.s1.boxes || [];
-        appState.s1.enableAspect = currentUiMode === 'normal' ? (data.s1.enableAspect !== undefined ? data.s1.enableAspect : false) : false;
+    async function restoreSession(data) {
+      showLoading('前回の作業データを復元中...', '模範解答用紙を展開しています...');
+      try {
+        if (data.s1) {
+          appState.s1.pagesPerStudent = data.s1.pagesPerStudent || 1;
+          appState.s1.boxes = data.s1.boxes || [];
+          appState.s1.enableAspect = currentUiMode === 'normal' ? (data.s1.enableAspect !== undefined ? data.s1.enableAspect : false) : false;
 
-        if (data.s1.pages && data.s1.pages.length > 0) {
-          appState.s1.pages = data.s1.pages.map(p => {
-            const canvas = document.createElement('canvas');
-            canvas.width = p.width;
-            canvas.height = p.height;
-            const ctx = canvas.getContext('2d');
-            const img = new Image();
-            img.onload = () => ctx.drawImage(img, 0, 0);
-            img.src = p.dataUrl;
-            return { ...p, canvas: canvas };
-          });
+          if (data.s1.pages && data.s1.pages.length > 0) {
+            // ★ 全ページの画像がメモリに完全に描画完了するまで非同期で確実に待機
+            appState.s1.pages = await Promise.all(data.s1.pages.map(p => {
+              return new Promise((resolve) => {
+                const canvas = document.createElement('canvas');
+                canvas.width = p.width;
+                canvas.height = p.height;
+                const ctx = canvas.getContext('2d');
+                const img = new Image();
+                img.onload = () => {
+                  ctx.drawImage(img, 0, 0);
+                  resolve({ ...p, canvas: canvas });
+                };
+                img.onerror = () => resolve({ ...p, canvas: canvas });
+                img.src = p.dataUrl;
+              });
+            }));
 
-          s1EmptyState.classList.add('hidden');
-          renderS1PageTabs();
-          switchS1Page(data.s1.currentPage || 1);
-        }
-      }
-      if (data.s2) {
-        appState.s2.pagesPerStudent = data.s2.pagesPerStudent || appState.s1.pagesPerStudent;
-        appState.s2.questions = data.s2.questions || [];
-        appState.s2.metaBoxes = data.s2.metaBoxes || [];
-        appState.s2.isDoubleMode = currentUiMode === 'normal' ? !!data.s2.isDoubleMode : false;
-        s2DoubleModeToggle.checked = appState.s2.isDoubleMode;
-        if (data.s2.gridSize) {
-          applyTileSize(data.s2.gridSize);
+            s1EmptyState.classList.add('hidden');
+            renderS1PageTabs();
+            switchS1Page(data.s1.currentPage || 1);
+          }
         }
 
-        if (data.s2.studentsSummary && data.s2.studentsSummary.length > 0) {
-          appState.s2.students = data.s2.studentsSummary.map(std => {
-            const elements = (std.fullPageImages || []).map(url => {
-              const img = new Image();
-              img.src = url;
-              return img;
-            });
-            return { ...std, fullPageImgElements: elements, annotations: std.annotations || [] };
-          });
-          initS2QuestionSelect();
-          switchTab(2);
-          renderS2Tiles();
-          updateS2Progress();
+        if (data.s2) {
+          appState.s2.pagesPerStudent = data.s2.pagesPerStudent || appState.s1.pagesPerStudent;
+          appState.s2.questions = data.s2.questions || [];
+          appState.s2.metaBoxes = data.s2.metaBoxes || [];
+          appState.s2.isDoubleMode = currentUiMode === 'normal' ? !!data.s2.isDoubleMode : false;
+          s2DoubleModeToggle.checked = appState.s2.isDoubleMode;
+          if (data.s2.gridSize) {
+            applyTileSize(data.s2.gridSize);
+          }
+
+          if (data.s2.studentsSummary && data.s2.studentsSummary.length > 0) {
+            loadingSubtitle.textContent = '生徒答案データを展開中...';
+            // 生徒答案画像も非同期ロードの完了を待機
+            appState.s2.students = await Promise.all(data.s2.studentsSummary.map(async (std) => {
+              const elements = await Promise.all((std.fullPageImages || []).map(url => {
+                return new Promise((res) => {
+                  const img = new Image();
+                  img.onload = () => res(img);
+                  img.onerror = () => res(img);
+                  img.src = url;
+                });
+              }));
+              return { ...std, fullPageImgElements: elements, annotations: std.annotations || [] };
+            }));
+
+            // 模範解答画像が確実に揃った状態でStep 2の設問選択・プレビューを同期
+            syncStep1ToStep2();
+            initS2QuestionSelect();
+            switchTab(2);
+            renderS2Tiles();
+            updateS2Progress();
+          }
         }
+      } catch (err) {
+        console.error('復元エラー:', err);
+      } finally {
+        hideLoading();
       }
     }
-
+    
     document.getElementById('clear-cache-btn').addEventListener('click', async () => {
       if (confirm('保存されている枠設定や採点途中データをすべて消去して初期状態に戻しますか？')) {
         if (!dbInstance) await openDatabase();
@@ -3961,8 +3983,22 @@
           const studentCount = rotatedPages.length / pagesPerStudent;
           const newStudents = [];
 
+          // ★ 既存データの有無を確認し、追加取り込みか新規かを判定
+          let isAppendMode = false;
+          let startNum = 1;
+
+          if (appState.s2.students.length > 0) {
+            const currentTotal = appState.s2.students.length;
+            if (confirm(`【答案データの追加確認】\n現在すでに ${currentTotal}名分 の答案データが存在します。\n\n・[OK] を押すと、既存のデータを残したまま「追加取り込み」します（欠席者の追試や別クラス追加）。\n・[キャンセル] を押すと、既存データを消去して新しく上書きします。`)) {
+              isAppendMode = true;
+              // 既存の最大出席番号の次から付番
+              const maxNum = Math.max(0, ...appState.s2.students.map(s => Number(s.studentNum) || 0));
+              startNum = maxNum + 1;
+            }
+          }
+
           for (let s = 0; s < studentCount; s++) {
-            const studentNum = s + 1;
+            const studentNum = startNum + s;
             const stdImages = [];
             const stdImgElements = [];
             const stdScores1 = {};
@@ -3995,16 +4031,26 @@
             });
           }
 
-          appState.s2.students = newStudents;
-          appState.s2.activeStudentIndex = 0;
-          appState.s2.tileOffsets = {};
+          if (isAppendMode) {
+            // 既存の生徒配列に結合
+            appState.s2.students = [...appState.s2.students, ...newStudents];
+          } else {
+            // 新規入れ替え
+            appState.s2.students = newStudents;
+            appState.s2.activeStudentIndex = 0;
+            appState.s2.tileOffsets = {};
+          }
+
           renderS2Tiles();
           updateS2Progress();
           triggerAutoSave();
           hideLoading();
 
           setTimeout(() => {
-            if (confirm(`答案PDFの展開が完了しました（全 ${studentCount} 名分・${pagesPerStudent}ページ構成）。\n出席番号の確認・修正画面を開きますか？`)) {
+            const msg = isAppendMode 
+              ? `新たに ${studentCount} 名分の答案を追加しました（合計 ${appState.s2.students.length}名）。\n出席番号・氏名の確認画面を開きますか？`
+              : `答案PDFの展開が完了しました（全 ${studentCount} 名分）。\n出席番号の確認画面を開きますか？`;
+            if (confirm(msg)) {
               document.getElementById('s2-open-num-modal-btn').click();
             }
           }, 200);
