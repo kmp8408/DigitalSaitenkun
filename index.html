@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>でじたる採点くん Ver 4.0</title>
+  <title>でじたる採点くん Ver 5.0</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script>
@@ -80,7 +80,7 @@
         <i class="fa-solid fa-pen-ruler text-xs"></i>
       </div>
       <span class="font-bold text-sm tracking-wide text-white">でじたる採点くん</span>
-      <span class="text-[10px] bg-slate-800 text-slate-400 px-2 py-0.5 rounded font-mono">Ver 4.0</span>
+      <span class="text-[10px] bg-slate-800 text-slate-400 px-2 py-0.5 rounded font-mono">Ver 5.0</span>
       <span id="autosave-indicator" class="text-[10px] text-emerald-400 flex items-center space-x-1 ml-2">
         <i class="fa-solid fa-cloud-arrow-up"></i><span>自動保存済</span>
       </span>
@@ -4850,7 +4850,7 @@
       setTimeout(() => {
         try {
           const exportData = {
-            version: "4.0",
+            version: "5.0",
             appName: "でじたる採点くん",
             createdAt: new Date().toISOString(),
             pagesPerStudent: appState.s1.pagesPerStudent,
