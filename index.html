@@ -84,6 +84,11 @@
       <span id="autosave-indicator" class="text-[10px] text-emerald-400 flex items-center space-x-1 ml-2">
         <i class="fa-solid fa-cloud-arrow-up"></i><span>自動保存済</span>
       </span>
+<!-- テスト一覧（ポータル）へ戻るボタン -->
+      <button type="button" id="btn-back-to-portal" class="hidden ml-3 px-2.5 py-1 bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white rounded-lg border border-slate-700 text-xs font-bold transition flex items-center space-x-1.5 shadow" title="作業内容を自動保存してテスト一覧画面へ戻る">
+        <i class="fa-solid fa-arrow-left text-[11px] text-indigo-400"></i>
+        <span>テスト一覧へ</span>
+      </button>
     </div>
 
     <!-- 中央：ステップ切り替えタブ ＆ モード切替スイッチ -->
@@ -136,11 +141,88 @@
         <span>JSON読込</span>
         <input type="file" id="global-import-json-input" accept=".json" class="hidden">
       </label>
-      <button id="clear-cache-btn" class="px-2 py-1 bg-slate-800 hover:bg-rose-900/60 text-slate-400 hover:text-rose-200 rounded border border-slate-700 transition text-[11px]" title="ブラウザ内に自動保存された途中データを全消去">
-        <i class="fa-solid fa-trash mr-1"></i>初期化
-      </button>
     </div>
   </nav>
+
+<!-- ================= VIEW 0: テスト管理ポータル画面 ================= -->
+  <div id="view-portal" class="flex-1 flex flex-col overflow-y-auto bg-slate-900 p-6 z-20">
+    <div class="max-w-6xl mx-auto w-full space-y-6">
+      
+      <!-- ポータルヘッダー -->
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between pb-5 border-b border-slate-800 gap-4">
+        <div>
+          <h1 class="text-xl font-bold text-white flex items-center space-x-2">
+            <i class="fa-solid fa-folder-open text-indigo-400"></i>
+            <span>テスト・採点管理ポータル</span>
+          </h1>
+          <p class="text-xs text-slate-400 mt-1">作成済みのテストを切り替えて採点したり、新しいテストを登録できます。</p>
+        </div>
+
+        <div class="flex items-center space-x-3">
+          <button type="button" id="btn-open-create-test" class="px-4 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs rounded-xl shadow-lg shadow-indigo-600/30 transition flex items-center space-x-2">
+            <i class="fa-solid fa-plus"></i>
+            <span>新しいテストを作成</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- 空状態（テストがまだ1件もない場合） -->
+      <div id="portal-empty-state" class="hidden py-16 flex flex-col items-center justify-center text-center">
+        <div class="w-16 h-16 bg-slate-800/80 rounded-2xl flex items-center justify-center text-slate-500 mb-4 border border-slate-700">
+          <i class="fa-solid fa-clipboard-list text-3xl"></i>
+        </div>
+        <h3 class="text-base font-bold text-slate-200 mb-1">登録されているテストがありません</h3>
+        <p class="text-xs text-slate-400 max-w-sm mb-5 leading-relaxed">右上の「新しいテストを作成」ボタンから考査名・科目を登録して採点を開始してください。</p>
+        <button type="button" onclick="document.getElementById('btn-open-create-test').click()" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs rounded-lg transition shadow">
+          最初のテストを作成する
+        </button>
+      </div>
+
+      <!-- テストカード一覧グリッド -->
+      <div id="portal-test-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <!-- JavaScriptからカードが動的挿入されます -->
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= 新規テスト作成モーダル ================= -->
+  <div id="create-test-modal" class="fixed inset-0 bg-slate-950/85 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+    <div class="bg-slate-900 border border-slate-700 rounded-2xl shadow-2xl w-full max-w-md overflow-hidden">
+      <div class="px-5 py-4 bg-slate-800 border-b border-slate-700 flex justify-between items-center">
+        <div class="flex items-center space-x-2">
+          <i class="fa-solid fa-folder-plus text-indigo-400 text-base"></i>
+          <h3 class="font-bold text-sm text-white">新しいテストを作成</h3>
+        </div>
+        <button type="button" id="btn-close-create-modal" class="text-slate-400 hover:text-white p-1 text-base"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+
+      <form id="create-test-form" class="p-5 space-y-4 text-xs">
+        <div>
+          <label class="block text-slate-300 font-bold mb-1">テスト名 / 考査名 <span class="text-rose-400">*</span></label>
+          <input type="text" id="new-test-name" required class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-white text-xs focus:border-indigo-500 outline-none" placeholder="例: 2026前期中間考査">
+        </div>
+
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-slate-300 font-bold mb-1">学年 / クラス</label>
+            <input type="text" id="new-test-class" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-white text-xs focus:border-indigo-500 outline-none" placeholder="例: 高2全クラス">
+          </div>
+          <div>
+            <label class="block text-slate-300 font-bold mb-1">教科 / 科目</label>
+            <input type="text" id="new-test-subject" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-white text-xs focus:border-indigo-500 outline-none" placeholder="例: 数学">
+          </div>
+        </div>
+
+        <div class="pt-3 border-t border-slate-800 flex justify-end space-x-2">
+          <button type="button" id="btn-cancel-create-test" class="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg transition font-medium">キャンセル</button>
+          <button type="submit" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-lg shadow transition flex items-center space-x-1.5">
+            <i class="fa-solid fa-check"></i>
+            <span>作成して枠設定へ</span>
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
 
   <!-- ================= VIEW 1: ステップA（枠設定エディタ） ================= -->
   <div id="view-step1" class="flex-1 flex flex-col overflow-hidden relative">
@@ -907,8 +989,8 @@
         signinModal.classList.add('hidden');
         signinForm.reset();
 
-        // 採点作業データの復元チェック
-        checkAndRestoreAutoSave();
+        // 採点ポータル画面を開く
+        showPortal();
 
       } catch (err) {
         console.error("認証通信エラー:", err);
@@ -942,7 +1024,7 @@
           authState.currentUser = user;
           currentUserDisplay.textContent = `${user.name} (${user.userId})`;
           signinModal.classList.add('hidden');
-          checkAndRestoreAutoSave();
+          showPortal();
           return;
         } catch (e) {
           sessionStorage.removeItem('d_saiten_auth_user');
@@ -1118,6 +1200,8 @@
 
     const appState = {
       currentStep: 1,
+      currentTestId: null,   // 現在編集中のテストID (例: 'test_1730000000')
+      currentTestMeta: null, // 現在のテスト名・科目・クラス情報
       customKeys: {
         correct: localStorage.getItem('d_saiten_key_correct') || 'c',
         wrong: localStorage.getItem('d_saiten_key_wrong') || 'x',
@@ -1317,7 +1401,7 @@
       }
     }, true);
 
-    // ================= 5. IndexedDB 自動保存 ＆ 復元 =================
+    // ================= 5. IndexedDB マルチテスト管理 ＆ 自動保存 =================
     const DB_NAME = 'DejitaruSaitenDB_v3';
     const DB_VERSION = 1;
     let dbInstance = null;
@@ -1336,8 +1420,30 @@
       });
     }
 
+    // --- テスト一覧マスターの取得・保存 ---
+    async function getTestsMetaList() {
+      if (!dbInstance) await openDatabase();
+      return new Promise((resolve) => {
+        const tx = dbInstance.transaction('autosave', 'readonly');
+        const req = tx.objectStore('autosave').get('tests_meta_list');
+        req.onsuccess = () => {
+          resolve((req.result && req.result.list) ? req.result.list : []);
+        };
+        req.onerror = () => resolve([]);
+      });
+    }
+
+    async function saveTestsMetaList(list) {
+      if (!dbInstance) await openDatabase();
+      const tx = dbInstance.transaction('autosave', 'readwrite');
+      tx.objectStore('autosave').put({ key: 'tests_meta_list', list: list });
+    }
+
+    // --- テスト詳細データの保存（自動保存） ---
     let autoSaveTimeout = null;
     function triggerAutoSave() {
+      if (!appState.currentTestId) return; // テスト未選択時はスキップ
+
       if (autoSaveTimeout) clearTimeout(autoSaveTimeout);
       autosaveIndicator.innerHTML = '<i class="fa-solid fa-spinner animate-spin"></i><span>保存中...</span>';
       autosaveIndicator.className = 'text-[10px] text-amber-400 flex items-center space-x-1 ml-2';
@@ -1348,9 +1454,24 @@
           const tx = dbInstance.transaction('autosave', 'readwrite');
           const store = tx.objectStore('autosave');
 
+          const curQCount = appState.s2.questions.length;
+          const stdCount = appState.s2.students.length;
+          let markedTotal = 0;
+          if (curQCount > 0 && stdCount > 0) {
+            appState.s2.students.forEach(std => {
+              appState.s2.questions.forEach(q => {
+                if (std.scores1[q.id] !== null && std.scores1[q.id] !== undefined) markedTotal++;
+              });
+            });
+          }
+          const totalSlots = curQCount * stdCount;
+          const progressPct = totalSlots > 0 ? Math.round((markedTotal / totalSlots) * 100) : 0;
+
+          // 1. テスト詳細データの保存
           const saveData = {
-            key: 'current_session_v3',
+            key: appState.currentTestId,
             updatedAt: new Date().toISOString(),
+            meta: appState.currentTestMeta,
             s1: {
               pagesPerStudent: appState.s1.pagesPerStudent,
               currentPage: appState.s1.currentPage,
@@ -1379,8 +1500,19 @@
               }))
             }
           };
-
           store.put(saveData);
+
+          // 2. テスト一覧マスターの進捗・更新日時を同期
+          const metaList = await getTestsMetaList();
+          const idx = metaList.findIndex(m => m.id === appState.currentTestId);
+          if (idx !== -1) {
+            metaList[idx].studentCount = stdCount;
+            metaList[idx].questionCount = curQCount;
+            metaList[idx].progress = progressPct;
+            metaList[idx].updatedAt = new Date().toISOString();
+            await saveTestsMetaList(metaList);
+          }
+
           autosaveIndicator.innerHTML = '<i class="fa-solid fa-cloud-arrow-up"></i><span>自動保存済</span>';
           autosaveIndicator.className = 'text-[10px] text-emerald-400 flex items-center space-x-1 ml-2';
         } catch (err) {
@@ -1391,107 +1523,397 @@
       }, 600);
     }
 
-    async function checkAndRestoreAutoSave() {
+    // --- 指定テストの読み込み・復元 ---
+    async function loadTestSession(testId) {
+      showLoading('テストデータを読み込み中...', '用紙・答案データを展開しています...');
       try {
-        await openDatabase();
+        if (!dbInstance) await openDatabase();
         const tx = dbInstance.transaction('autosave', 'readonly');
-        const store = tx.objectStore('autosave');
-        const req = store.get('current_session_v3');
-        req.onsuccess = () => {
+        const req = tx.objectStore('autosave').get(testId);
+
+        req.onsuccess = async () => {
           const data = req.result;
-          if (data && ((data.s1 && data.s1.boxes.length > 0) || (data.s2 && data.s2.studentsSummary && data.s2.studentsSummary.length > 0))) {
-            const count = data.s2.studentsSummary ? data.s2.studentsSummary.length : 0;
-            if (confirm(`【前回の作業再開】\n途中保存データが見つかりました（枠: ${data.s1.boxes.length}件、答案: ${count}名分、用紙: ${data.s1.pagesPerStudent || 1}ページ構成）。\n復元しますか？`)) {
-              restoreSession(data);
-            }
+          if (!data) {
+            alert('テストデータが見つかりませんでした。');
+            hideLoading();
+            return;
           }
+
+          appState.currentTestId = testId;
+          appState.currentTestMeta = data.meta || { id: testId, name: '名称未設定テスト' };
+
+          // データの復元
+          await restoreSessionData(data);
+          hideLoading();
+          showGradingWorkspace(); // 採点・枠設定画面へ切り替え
         };
       } catch (err) {
-        console.error('復元確認エラー:', err);
+        hideLoading();
+        console.error('テスト読込エラー:', err);
+        alert('テストデータの読み込みに失敗しました。');
       }
     }
 
-    async function restoreSession(data) {
-      showLoading('前回の作業データを復元中...', '模範解答用紙を展開しています...');
-      try {
-        if (data.s1) {
-          appState.s1.pagesPerStudent = data.s1.pagesPerStudent || 1;
-          appState.s1.boxes = data.s1.boxes || [];
-          appState.s1.enableAspect = currentUiMode === 'normal' ? (data.s1.enableAspect !== undefined ? data.s1.enableAspect : false) : false;
+    // データのメモリ展開（白紙化防止・非同期ロード待機）
+    async function restoreSessionData(data) {
+      if (data.s1) {
+        appState.s1.pagesPerStudent = data.s1.pagesPerStudent || 1;
+        appState.s1.boxes = data.s1.boxes || [];
+        appState.s1.enableAspect = currentUiMode === 'normal' ? (data.s1.enableAspect !== undefined ? data.s1.enableAspect : false) : false;
 
-          if (data.s1.pages && data.s1.pages.length > 0) {
-            // ★ 全ページの画像がメモリに完全に描画完了するまで非同期で確実に待機
-            appState.s1.pages = await Promise.all(data.s1.pages.map(p => {
-              return new Promise((resolve) => {
-                const canvas = document.createElement('canvas');
-                canvas.width = p.width;
-                canvas.height = p.height;
-                const ctx = canvas.getContext('2d');
+        if (data.s1.pages && data.s1.pages.length > 0) {
+          appState.s1.pages = await Promise.all(data.s1.pages.map(p => {
+            return new Promise((resolve) => {
+              const canvas = document.createElement('canvas');
+              canvas.width = p.width;
+              canvas.height = p.height;
+              const ctx = canvas.getContext('2d');
+              const img = new Image();
+              img.onload = () => {
+                ctx.drawImage(img, 0, 0);
+                resolve({ ...p, canvas: canvas });
+              };
+              img.onerror = () => resolve({ ...p, canvas: canvas });
+              img.src = p.dataUrl;
+            });
+          }));
+
+          s1EmptyState.classList.add('hidden');
+          renderS1PageTabs();
+          switchS1Page(data.s1.currentPage || 1);
+        } else {
+          appState.s1.pages = [];
+          s1EmptyState.classList.remove('hidden');
+        }
+      }
+
+      if (data.s2) {
+        appState.s2.pagesPerStudent = data.s2.pagesPerStudent || appState.s1.pagesPerStudent;
+        appState.s2.questions = data.s2.questions || [];
+        appState.s2.metaBoxes = data.s2.metaBoxes || [];
+        appState.s2.isDoubleMode = currentUiMode === 'normal' ? !!data.s2.isDoubleMode : false;
+        s2DoubleModeToggle.checked = appState.s2.isDoubleMode;
+        if (data.s2.gridSize) {
+          applyTileSize(data.s2.gridSize);
+        }
+
+        if (data.s2.studentsSummary && data.s2.studentsSummary.length > 0) {
+          appState.s2.students = await Promise.all(data.s2.studentsSummary.map(async (std) => {
+            const elements = await Promise.all((std.fullPageImages || []).map(url => {
+              return new Promise((res) => {
                 const img = new Image();
-                img.onload = () => {
-                  ctx.drawImage(img, 0, 0);
-                  resolve({ ...p, canvas: canvas });
-                };
-                img.onerror = () => resolve({ ...p, canvas: canvas });
-                img.src = p.dataUrl;
+                img.onload = () => res(img);
+                img.onerror = () => res(img);
+                img.src = url;
               });
             }));
+            return { ...std, fullPageImgElements: elements, annotations: std.annotations || [] };
+          }));
 
-            s1EmptyState.classList.add('hidden');
-            renderS1PageTabs();
-            switchS1Page(data.s1.currentPage || 1);
-          }
+          syncStep1ToStep2();
+          initS2QuestionSelect();
+          switchTab(2);
+          renderS2Tiles();
+          updateS2Progress();
+        } else {
+          appState.s2.students = [];
+          switchTab(1);
         }
-
-        if (data.s2) {
-          appState.s2.pagesPerStudent = data.s2.pagesPerStudent || appState.s1.pagesPerStudent;
-          appState.s2.questions = data.s2.questions || [];
-          appState.s2.metaBoxes = data.s2.metaBoxes || [];
-          appState.s2.isDoubleMode = currentUiMode === 'normal' ? !!data.s2.isDoubleMode : false;
-          s2DoubleModeToggle.checked = appState.s2.isDoubleMode;
-          if (data.s2.gridSize) {
-            applyTileSize(data.s2.gridSize);
-          }
-
-          if (data.s2.studentsSummary && data.s2.studentsSummary.length > 0) {
-            loadingSubtitle.textContent = '生徒答案データを展開中...';
-            // 生徒答案画像も非同期ロードの完了を待機
-            appState.s2.students = await Promise.all(data.s2.studentsSummary.map(async (std) => {
-              const elements = await Promise.all((std.fullPageImages || []).map(url => {
-                return new Promise((res) => {
-                  const img = new Image();
-                  img.onload = () => res(img);
-                  img.onerror = () => res(img);
-                  img.src = url;
-                });
-              }));
-              return { ...std, fullPageImgElements: elements, annotations: std.annotations || [] };
-            }));
-
-            // 模範解答画像が確実に揃った状態でStep 2の設問選択・プレビューを同期
-            syncStep1ToStep2();
-            initS2QuestionSelect();
-            switchTab(2);
-            renderS2Tiles();
-            updateS2Progress();
-          }
-        }
-      } catch (err) {
-        console.error('復元エラー:', err);
-      } finally {
-        hideLoading();
       }
     }
-    
-    document.getElementById('clear-cache-btn').addEventListener('click', async () => {
-      if (confirm('保存されている枠設定や採点途中データをすべて消去して初期状態に戻しますか？')) {
-        if (!dbInstance) await openDatabase();
-        const tx = dbInstance.transaction('autosave', 'readwrite');
-        tx.objectStore('autosave').clear();
-        alert('データを消去しました。再読み込みします。');
-        location.reload();
+
+    // --- テストの削除 ---
+    async function deleteTestSession(testId, testName) {
+      if (!confirm(`【テストの完全削除】\n「${testName}」の全採点データ・答案画像を完全に削除しますか？\n※この操作は取り消せません。`)) {
+        return;
+      }
+
+      if (!dbInstance) await openDatabase();
+      const tx = dbInstance.transaction('autosave', 'readwrite');
+      const store = tx.objectStore('autosave');
+      store.delete(testId);
+
+      const metaList = await getTestsMetaList();
+      const filtered = metaList.filter(m => m.id !== testId);
+      await saveTestsMetaList(filtered);
+
+      renderPortalTests(); // ポータル一覧を再描画
+    }
+
+    // --- ポータル画面 DOM要素 ＆ 編集管理変数 ---
+    const viewPortal = document.getElementById('view-portal');
+    const portalEmptyState = document.getElementById('portal-empty-state');
+    const portalTestGrid = document.getElementById('portal-test-grid');
+    const btnBackToPortal = document.getElementById('btn-back-to-portal');
+    const btnOpenCreateTest = document.getElementById('btn-open-create-test');
+    const createTestModal = document.getElementById('create-test-modal');
+    const createTestForm = document.getElementById('create-test-form');
+    const btnCloseCreateModal = document.getElementById('btn-close-create-modal');
+    const btnCancelCreateTest = document.getElementById('btn-cancel-create-test');
+
+    let editingTestId = null; // ★ 編集中のテストID（nullの場合は新規作成）
+
+    // ポータル画面を表示する
+    async function showPortal() {
+      if (appState.currentTestId) {
+        triggerAutoSave();
+      }
+
+      viewPortal.classList.remove('hidden');
+      viewStep1.classList.add('hidden');
+      viewStep2.classList.add('hidden');
+      btnBackToPortal.classList.add('hidden');
+
+      document.getElementById('tab-step1-btn').parentElement.classList.add('opacity-0', 'pointer-events-none');
+      document.getElementById('btn-mode-simple').closest('.flex.items-center.bg-slate-900').classList.add('opacity-0', 'pointer-events-none');
+
+      await renderPortalTests();
+    }
+
+    // 採点ワークスペースを表示する
+    function showGradingWorkspace() {
+      viewPortal.classList.add('hidden');
+      btnBackToPortal.classList.remove('hidden');
+
+      document.getElementById('tab-step1-btn').parentElement.classList.remove('opacity-0', 'pointer-events-none');
+      document.getElementById('btn-mode-simple').closest('.flex.items-center.bg-slate-900').classList.remove('opacity-0', 'pointer-events-none');
+
+      if (appState.s2.questions.length > 0 && appState.s2.students.length > 0) {
+        switchTab(2);
+      } else {
+        switchTab(1);
+      }
+    }
+
+    // ポータル一覧カードの動的描画（編集ボタン追加）
+    async function renderPortalTests() {
+      const metaList = await getTestsMetaList();
+      portalTestGrid.innerHTML = '';
+
+      if (metaList.length === 0) {
+        portalEmptyState.classList.remove('hidden');
+        portalTestGrid.classList.add('hidden');
+        return;
+      }
+
+      portalEmptyState.classList.add('hidden');
+      portalTestGrid.classList.remove('hidden');
+
+      metaList.sort((a, b) => new Date(b.updatedAt || 0) - new Date(a.updatedAt || 0));
+
+      metaList.forEach(test => {
+        const card = document.createElement('div');
+        card.className = 'bg-slate-800/90 border border-slate-700 hover:border-indigo-500/70 rounded-2xl p-5 flex flex-col justify-between transition-all duration-150 shadow-lg group relative';
+
+        const updatedDateStr = test.updatedAt 
+          ? new Date(test.updatedAt).toLocaleDateString('ja-JP', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })
+          : '未記録';
+
+        const progress = Math.min(100, Math.max(0, test.progress || 0));
+        const isComplete = progress === 100;
+
+        card.innerHTML = `
+          <div>
+            <div class="flex items-start justify-between mb-2">
+              <span class="text-[11px] font-bold px-2.5 py-0.5 rounded-full ${
+                isComplete 
+                  ? 'bg-emerald-950/80 text-emerald-400 border border-emerald-700/60' 
+                  : 'bg-indigo-950/80 text-indigo-300 border border-indigo-700/60'
+              }">
+                ${isComplete ? '採点完了' : `進捗 ${progress}%`}
+              </span>
+              <div class="flex items-center space-x-1">
+                <!-- ★ 編集ボタン -->
+                <button type="button" class="btn-edit-test text-slate-400 hover:text-indigo-300 p-1 transition" title="テスト情報を編集">
+                  <i class="fa-solid fa-pen text-xs"></i>
+                </button>
+                <!-- 削除ボタン -->
+                <button type="button" class="btn-delete-test text-slate-500 hover:text-rose-400 p-1 transition ml-1" title="このテストを削除">
+                  <i class="fa-solid fa-trash-can text-xs"></i>
+                </button>
+              </div>
+            </div>
+
+            <h3 class="font-bold text-base text-white group-hover:text-indigo-300 transition line-clamp-1 mb-1">
+              ${test.name}
+            </h3>
+
+            <div class="flex items-center space-x-2 text-xs text-slate-400 mb-4 font-mono">
+              ${test.class ? `<span><i class="fa-solid fa-users text-[10px] mr-1 text-slate-500"></i>${test.class}</span><span>•</span>` : ''}
+              ${test.subject ? `<span><i class="fa-solid fa-book text-[10px] mr-1 text-slate-500"></i>${test.subject}</span>` : ''}
+            </div>
+
+            <div class="space-y-1.5 mb-4">
+              <div class="flex justify-between text-[11px] text-slate-400 font-mono">
+                <span>答案: <b class="text-slate-200">${test.studentCount || 0}</b> 名</span>
+                <span>設問: <b class="text-slate-200">${test.questionCount || 0}</b> 問</span>
+              </div>
+              <div class="w-full h-1.5 bg-slate-700 rounded-full overflow-hidden">
+                <div class="h-full ${isComplete ? 'bg-emerald-500' : 'bg-indigo-500'} transition-all duration-300" style="width: ${progress}%"></div>
+              </div>
+            </div>
+          </div>
+
+          <div class="pt-3 border-t border-slate-700/60 flex items-center justify-between text-xs">
+            <span class="text-[10px] text-slate-500 font-mono">更新: ${updatedDateStr}</span>
+            <button type="button" class="btn-open-test px-3.5 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-lg shadow transition flex items-center space-x-1.5">
+              <span>採点を再開</span>
+              <i class="fa-solid fa-arrow-right text-[10px]"></i>
+            </button>
+          </div>
+        `;
+
+        // 採点再開ボタン
+        card.querySelector('.btn-open-test').addEventListener('click', () => {
+          loadTestSession(test.id);
+        });
+
+        // ★ 編集ボタンクリックイベント
+        card.querySelector('.btn-edit-test').addEventListener('click', (e) => {
+          e.stopPropagation();
+          openEditTestModal(test);
+        });
+
+        // 削除ボタン
+        card.querySelector('.btn-delete-test').addEventListener('click', (e) => {
+          e.stopPropagation();
+          deleteTestSession(test.id, test.name);
+        });
+
+        portalTestGrid.appendChild(card);
+      });
+    }
+
+    // --- 新規作成 / 編集モーダル制御 ---
+    if (btnOpenCreateTest) {
+      btnOpenCreateTest.addEventListener('click', () => {
+        editingTestId = null;
+        createTestForm.reset();
+        document.querySelector('#create-test-modal h3').textContent = '新しいテストを作成';
+        document.querySelector('#create-test-form button[type="submit"] span').textContent = '作成して枠設定へ';
+        createTestModal.classList.remove('hidden');
+        document.getElementById('new-test-name').focus();
+      });
+    }
+
+    // ★ 編集モードでモーダルを開く関数
+    function openEditTestModal(test) {
+      editingTestId = test.id;
+      createTestForm.reset();
+      document.querySelector('#create-test-modal h3').textContent = 'テスト情報の編集';
+      document.querySelector('#create-test-form button[type="submit"] span').textContent = '変更を保存';
+      
+      document.getElementById('new-test-name').value = test.name || '';
+      document.getElementById('new-test-class').value = test.class || '';
+      document.getElementById('new-test-subject').value = test.subject || '';
+
+      createTestModal.classList.remove('hidden');
+      document.getElementById('new-test-name').focus();
+    }
+
+    function closeCreateTestModal() {
+      createTestModal.classList.add('hidden');
+      createTestForm.reset();
+      editingTestId = null;
+    }
+
+    if (btnCloseCreateModal) btnCloseCreateModal.addEventListener('click', closeCreateTestModal);
+    if (btnCancelCreateTest) btnCancelCreateTest.addEventListener('click', closeCreateTestModal);
+
+    // 新規作成 または 編集保存の実行
+    createTestForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+
+      const name = document.getElementById('new-test-name').value.trim();
+      const testClass = document.getElementById('new-test-class').value.trim();
+      const subject = document.getElementById('new-test-subject').value.trim();
+
+      if (!name) return;
+
+      const metaList = await getTestsMetaList();
+
+      if (editingTestId) {
+        // ★ 既存テストの編集保存
+        const targetMeta = metaList.find(m => m.id === editingTestId);
+        if (targetMeta) {
+          targetMeta.name = name;
+          targetMeta.class = testClass;
+          targetMeta.subject = subject;
+          targetMeta.updatedAt = new Date().toISOString();
+          await saveTestsMetaList(metaList);
+
+          // 詳細データ内の meta も更新
+          if (!dbInstance) await openDatabase();
+          const tx = dbInstance.transaction('autosave', 'readwrite');
+          const store = tx.objectStore('autosave');
+          const req = store.get(editingTestId);
+          req.onsuccess = () => {
+            const data = req.result;
+            if (data) {
+              data.meta = { ...data.meta, name: name, class: testClass, subject: subject };
+              store.put(data);
+            }
+          };
+
+          // 現在開いているテストと同じであれば appState も更新
+          if (appState.currentTestId === editingTestId && appState.currentTestMeta) {
+            appState.currentTestMeta.name = name;
+            appState.currentTestMeta.class = testClass;
+            appState.currentTestMeta.subject = subject;
+          }
+        }
+        closeCreateTestModal();
+        renderPortalTests();
+      } else {
+        // 新規テストの作成
+        const newId = 'test_' + Date.now();
+        const meta = {
+          id: newId,
+          name: name,
+          class: testClass,
+          subject: subject,
+          studentCount: 0,
+          questionCount: 0,
+          progress: 0,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString()
+        };
+
+        metaList.unshift(meta);
+        await saveTestsMetaList(metaList);
+
+        appState.currentTestId = newId;
+        appState.currentTestMeta = meta;
+
+        appState.s1.pages = [];
+        appState.s1.boxes = [];
+        appState.s1.selectedIds = [];
+        appState.s1.pagesPerStudent = 1;
+        appState.s1.currentPage = 1;
+        appState.s2.students = [];
+        appState.s2.questions = [];
+        appState.s2.metaBoxes = [];
+        appState.s2.activeStudentIndex = 0;
+        appState.s2.tileOffsets = {};
+
+        s1EmptyState.classList.remove('hidden');
+        s1Ctx.clearRect(0, 0, s1Canvas.width, s1Canvas.height);
+        s1SvgOverlay.innerHTML = '';
+        s1UpdateSidebar();
+        renderS1PageTabs();
+
+        closeCreateTestModal();
+        showGradingWorkspace();
+        triggerAutoSave();
       }
     });
+
+    // 「テスト一覧へ」ボタンクリックイベント
+    if (btnBackToPortal) {
+      btnBackToPortal.addEventListener('click', () => {
+        showPortal();
+      });
+    }
 
     // ================= 6. タブ切り替え =================
     function switchTab(step) {
@@ -1501,6 +1923,10 @@
         viewStep2.classList.add('hidden');
         tabStep1Btn.className = 'px-4 py-1 rounded-lg text-xs font-bold transition flex items-center space-x-2 bg-indigo-600 text-white shadow';
         tabStep2Btn.className = 'px-4 py-1 rounded-lg text-xs font-bold transition flex items-center space-x-2 text-slate-400 hover:text-slate-200';
+        // ★ Step 1 を開いた際に自動で全体表示（フィット）を実行
+        requestAnimationFrame(() => {
+          setTimeout(s1FitView, 60);
+        });
       } else {
         syncStep1ToStep2();
         viewStep1.classList.add('hidden');
@@ -1684,9 +2110,16 @@
     function s1FitView() {
       const curPageInfo = appState.s1.pages.find(p => p.pageNum === appState.s1.currentPage);
       if (!curPageInfo) return;
+      
       const vw = s1Viewport.clientWidth;
       const vh = s1Viewport.clientHeight;
-      const padding = 32;
+      // 描画領域のサイズがまだ確定していない場合は少し待って再試行
+      if (vw <= 100 || vh <= 100) {
+        requestAnimationFrame(() => setTimeout(s1FitView, 50));
+        return;
+      }
+
+      const padding = 24;
       const scaleX = (vw - padding * 2) / curPageInfo.width;
       const scaleY = (vh - padding * 2) / curPageInfo.height;
       appState.s1.scale = Math.min(scaleX, scaleY, 1.2);
