@@ -537,6 +537,52 @@
     </main>
   </div>
 
+  <!-- ================= 答案PDF読込確認モーダル（3択） ================= -->
+  <div id="pdf-import-choice-modal" class="fixed inset-0 bg-slate-950/90 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+    <div class="bg-slate-900 border border-slate-700 rounded-2xl shadow-2xl w-full max-w-md overflow-hidden">
+      <div class="px-5 py-4 bg-slate-800 border-b border-slate-700 flex items-center justify-between">
+        <div class="flex items-center space-x-2">
+          <i class="fa-solid fa-file-circle-question text-indigo-400 text-base"></i>
+          <h3 class="font-bold text-sm text-white">答案データの読み込み方法</h3>
+        </div>
+        <button type="button" id="btn-choice-cancel-x" class="text-slate-400 hover:text-white p-1 text-base"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+
+      <div class="p-5 space-y-4 text-xs">
+        <div class="bg-slate-800/80 p-3 rounded-xl border border-slate-700 leading-relaxed text-slate-300">
+          現在すでに <span id="choice-modal-current-count" class="font-bold text-amber-400 font-mono text-sm">0</span> 名分の答案データが存在します。<br>
+          今回読み込んだPDFをどのように取り込みますか？
+        </div>
+
+        <div class="space-y-2.5">
+          <!-- 選択肢 1: 末尾に追加 -->
+          <button type="button" id="btn-choice-append" class="w-full p-3 bg-indigo-600 hover:bg-indigo-500 rounded-xl text-left border border-indigo-400/40 transition shadow-lg group">
+            <div class="flex items-center justify-between text-white font-bold text-sm mb-1">
+              <span class="flex items-center"><i class="fa-solid fa-user-plus mr-2 text-indigo-200"></i>末尾に追加する</span>
+              <i class="fa-solid fa-chevron-right text-xs opacity-60 group-hover:translate-x-1 transition-transform"></i>
+            </div>
+            <p class="text-[11px] text-indigo-100/80 leading-normal">既存の採点データを維持したまま、後ろの番号へ追加合流します（欠席者の追試や別クラス追加）。</p>
+          </button>
+
+          <!-- 選択肢 2: 新規上書き -->
+          <button type="button" id="btn-choice-overwrite" class="w-full p-3 bg-slate-800 hover:bg-rose-900/40 rounded-xl text-left border border-slate-700 hover:border-rose-500/50 transition group">
+            <div class="flex items-center justify-between text-slate-200 group-hover:text-rose-200 font-bold text-sm mb-1">
+              <span class="flex items-center"><i class="fa-solid fa-rotate mr-2 text-amber-400 group-hover:text-rose-400"></i>新しくやり直す (上書き)</span>
+              <i class="fa-solid fa-chevron-right text-xs opacity-60 group-hover:translate-x-1 transition-transform"></i>
+            </div>
+            <p class="text-[11px] text-slate-400 group-hover:text-rose-200/80 leading-normal">現在の採点データを破棄し、今回のPDFデータのみで最初からやり直します。</p>
+          </button>
+        </div>
+
+        <div class="pt-2 border-t border-slate-800 flex justify-end">
+          <button type="button" id="btn-choice-cancel" class="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg transition font-semibold text-xs flex items-center space-x-1">
+            <i class="fa-solid fa-xmark mr-1"></i><span>キャンセル（読み込みをやめる）</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+  
   <!-- 出席番号確認モーダル -->
   <div id="student-num-modal" class="fixed inset-0 bg-slate-950/85 backdrop-blur-sm z-50 flex flex-col items-center justify-center p-4 hidden">
     <div class="bg-slate-900 border border-slate-700 rounded-2xl shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col overflow-hidden">
@@ -3873,6 +3919,11 @@
       const cropCanvas = document.createElement('canvas');
       const cropCtx = cropCanvas.getContext('2d');
 
+      if (appState.s2.students.length === 0) {
+        studentNumList.innerHTML = '<p class="text-slate-500 text-center py-8">登録されている答案データがありません。</p>';
+        return;
+      }
+
       appState.s2.students.forEach((std, idx) => {
         const row = document.createElement('div');
         row.className = 'grid grid-cols-12 gap-2 items-center bg-slate-800/80 p-2 rounded border border-slate-700 text-xs';
@@ -3911,14 +3962,21 @@
           <div class="col-span-4 h-14 bg-white rounded border border-slate-600 flex items-center justify-center overflow-hidden p-1">
             ${nameImgSrc ? `<img src="${nameImgSrc}" class="max-h-full max-w-full object-contain">` : '<span class="text-slate-400 text-[10px]">氏名枠なし</span>'}
           </div>
-          <div class="col-span-3 flex items-center space-x-1.5">
-            <input type="number" min="1" value="${std.studentNum}" data-index="${idx}" class="std-num-input w-20 bg-slate-900 border border-slate-600 rounded px-2 py-1 text-white font-mono font-bold text-center text-sm focus:border-indigo-500 outline-none">
-            <span class="text-slate-400 text-[11px]">番</span>
+          <div class="col-span-3 flex items-center justify-between space-x-1.5">
+            <div class="flex items-center space-x-1">
+              <input type="number" min="1" value="${std.studentNum}" data-index="${idx}" class="std-num-input w-16 bg-slate-900 border border-slate-600 rounded px-1.5 py-1 text-white font-mono font-bold text-center text-sm focus:border-indigo-500 outline-none">
+              <span class="text-slate-400 text-[11px]">番</span>
+            </div>
+            <!-- ★ 個別削除ボタン（ゴミ箱） -->
+            <button type="button" class="btn-delete-student p-1.5 text-rose-400 hover:text-rose-200 hover:bg-rose-950/60 rounded border border-transparent hover:border-rose-800 transition shrink-0" data-index="${idx}" title="この答案データを削除">
+              <i class="fa-solid fa-trash-can text-sm pointer-events-none"></i>
+            </button>
           </div>
         `;
         studentNumList.appendChild(row);
       });
 
+      // 番号入力イベント
       document.querySelectorAll('.std-num-input').forEach((input, i, allInputs) => {
         input.addEventListener('change', (e) => {
           const idx = parseInt(e.target.dataset.index, 10);
@@ -3936,13 +3994,71 @@
           }
         });
       });
+
+      // ★ 個別削除ボタンのイベント登録
+      document.querySelectorAll('.btn-delete-student').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          const idx = parseInt(e.target.dataset.index, 10);
+          const targetStd = appState.s2.students[idx];
+          if (!targetStd) return;
+
+          if (confirm(`【答案の削除確認】\n出席番号 ${targetStd.studentNum}番（${targetStd.name}）の答案データを完全に削除しますか？\n※この操作は取り消せません。`)) {
+            appState.s2.students.splice(idx, 1);
+            if (appState.s2.activeStudentIndex >= appState.s2.students.length) {
+              appState.s2.activeStudentIndex = Math.max(0, appState.s2.students.length - 1);
+            }
+            renderStudentNumModal();
+            renderS2Tiles();
+            updateS2Progress();
+            triggerAutoSave();
+          }
+        });
+      });
     }
 
-    // ================= 15. 答案PDF展開 ＆ 90度回転補正 =================
+    // 3択モーダルの表示・入力待機関数
+    function askImportMode(currentCount) {
+      return new Promise((resolve) => {
+        const modal = document.getElementById('pdf-import-choice-modal');
+        const countEl = document.getElementById('choice-modal-current-count');
+        const btnAppend = document.getElementById('btn-choice-append');
+        const btnOverwrite = document.getElementById('btn-choice-overwrite');
+        const btnCancel = document.getElementById('btn-choice-cancel');
+        const btnCancelX = document.getElementById('btn-choice-cancel-x');
+
+        countEl.textContent = currentCount;
+        modal.classList.remove('hidden');
+
+        function cleanup(result) {
+          modal.classList.add('hidden');
+          btnAppend.onclick = null;
+          btnOverwrite.onclick = null;
+          btnCancel.onclick = null;
+          btnCancelX.onclick = null;
+          resolve(result); // 'append' | 'overwrite' | 'cancel'
+        }
+
+        btnAppend.onclick = () => cleanup('append');
+        btnOverwrite.onclick = () => cleanup('overwrite');
+        btnCancel.onclick = () => cleanup('cancel');
+        btnCancelX.onclick = () => cleanup('cancel');
+      });
+    }
+
+    // ================= 15. 答案PDF展開 ＆ 90度回転補正（3択モーダル対応） =================
     async function processStudentsPdf(file) {
       if (appState.s2.questions.length === 0) {
         alert('設問枠が設定されていません。Step 1 で枠を設定してください。');
         return;
+      }
+
+      // ★ 既存データがある場合は、まず3択モーダルを表示
+      let importMode = 'overwrite';
+      if (appState.s2.students.length > 0) {
+        importMode = await askImportMode(appState.s2.students.length);
+        if (importMode === 'cancel') {
+          return; // 何もせず安全に中断
+        }
       }
 
       const pagesPerStudent = appState.s2.pagesPerStudent || 1;
@@ -3983,18 +4099,11 @@
           const studentCount = rotatedPages.length / pagesPerStudent;
           const newStudents = [];
 
-          // ★ 既存データの有無を確認し、追加取り込みか新規かを判定
-          let isAppendMode = false;
+          // 開始番号の決定
           let startNum = 1;
-
-          if (appState.s2.students.length > 0) {
-            const currentTotal = appState.s2.students.length;
-            if (confirm(`【答案データの追加確認】\n現在すでに ${currentTotal}名分 の答案データが存在します。\n\n・[OK] を押すと、既存のデータを残したまま「追加取り込み」します（欠席者の追試や別クラス追加）。\n・[キャンセル] を押すと、既存データを消去して新しく上書きします。`)) {
-              isAppendMode = true;
-              // 既存の最大出席番号の次から付番
-              const maxNum = Math.max(0, ...appState.s2.students.map(s => Number(s.studentNum) || 0));
-              startNum = maxNum + 1;
-            }
+          if (importMode === 'append') {
+            const maxNum = Math.max(0, ...appState.s2.students.map(s => Number(s.studentNum) || 0));
+            startNum = maxNum + 1;
           }
 
           for (let s = 0; s < studentCount; s++) {
@@ -4031,11 +4140,9 @@
             });
           }
 
-          if (isAppendMode) {
-            // 既存の生徒配列に結合
+          if (importMode === 'append') {
             appState.s2.students = [...appState.s2.students, ...newStudents];
           } else {
-            // 新規入れ替え
             appState.s2.students = newStudents;
             appState.s2.activeStudentIndex = 0;
             appState.s2.tileOffsets = {};
@@ -4047,7 +4154,7 @@
           hideLoading();
 
           setTimeout(() => {
-            const msg = isAppendMode 
+            const msg = (importMode === 'append')
               ? `新たに ${studentCount} 名分の答案を追加しました（合計 ${appState.s2.students.length}名）。\n出席番号・氏名の確認画面を開きますか？`
               : `答案PDFの展開が完了しました（全 ${studentCount} 名分）。\n出席番号の確認画面を開きますか？`;
             if (confirm(msg)) {
