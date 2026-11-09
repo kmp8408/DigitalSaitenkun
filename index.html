@@ -82,8 +82,8 @@
       padding-bottom: 12px !important;
     }
     .vertical-scroll-layout .student-card {
-      min-width: 240px !important;
-      max-width: 260px !important;
+      min-width: 150px !important;
+      max-width: 180px !important;
       height: 100% !important;
       flex-shrink: 0 !important;
       display: flex !important;
@@ -2392,7 +2392,7 @@
       }
     }
 
-    // ================= 9. 高度な解答枠自動検出 =================
+    // ================= 9. 高度な解答枠自動検出（縦長枠対応版） =================
     function detectBoxAtPoint(startX, startY) {
       const pageInfo = appState.s1.pages.find(p => p.pageNum === appState.s1.currentPage);
       if (!pageInfo || !pageInfo.canvas) return null;
@@ -2405,11 +2405,14 @@
       startX = Math.round(startX);
       startY = Math.round(startY);
 
-      const roiRadius = 450;
-      const minRoiX = Math.max(0, startX - roiRadius);
-      const minRoiY = Math.max(0, startY - roiRadius);
-      const maxRoiX = Math.min(imgW - 1, startX + roiRadius);
-      const maxRoiY = Math.min(imgH - 1, startY + roiRadius);
+      // ★ 縦書き用に縦方向の探索半径を 1200px に大幅拡大
+      const roiRadiusX = 450;
+      const roiRadiusY = 1200;
+
+      const minRoiX = Math.max(0, startX - roiRadiusX);
+      const minRoiY = Math.max(0, startY - roiRadiusY);
+      const maxRoiX = Math.min(imgW - 1, startX + roiRadiusX);
+      const maxRoiY = Math.min(imgH - 1, startY + roiRadiusY);
       const roiW = maxRoiX - minRoiX + 1;
       const roiH = maxRoiY - minRoiY + 1;
 
@@ -2467,6 +2470,7 @@
         if (cy < boundMinY) boundMinY = cy;
         if (cy > boundMaxY) boundMaxY = cy;
 
+        // 探索境界への接触判定
         if (cx <= 1 || cx >= roiW - 2 || cy <= 1 || cy >= roiH - 2) {
           return null;
         }
@@ -2492,13 +2496,18 @@
       const boxW = boundMaxX - boundMinX;
       const boxH = boundMaxY - boundMinY;
 
-      if (boxW < 25 || boxH < 20 || boxW > roiRadius * 1.8 || boxH > roiRadius * 1.8) {
+      // ★ 縦長サイズ（最大2200pxまで）を許容
+      if (boxW < 20 || boxH < 20 || boxW > roiRadiusX * 1.8 || boxH > roiRadiusY * 1.9) {
         return null;
       }
 
       const rectArea = boxW * boxH;
       const ratio = filledCount / rectArea;
-      if (ratio < 0.68) return null;
+
+      // 細長い枠は内部の文字で白比率が下がりやすいため、アスペクト比に応じて閾値を緩和
+      const isNarrowVertical = (boxH / boxW) > 2.5;
+      const minRatio = isNarrowVertical ? 0.52 : 0.68;
+      if (ratio < minRatio) return null;
 
       return {
         x: Math.round(minRoiX + boundMinX - 1),
@@ -3678,14 +3687,15 @@
       tooltipEl.classList.add('hidden');
     }
 
-    // ★ アスペクト比を完全維持する高精度タイル描画
+    // ★ 設定枠だけを厳密に切り出し、隣の列を絶対に映さない高精度描画
     function drawPeekingTile(canvasEl, student, question, offset) {
       const ctx = canvasEl.getContext('2d');
-      const w = canvasEl.clientWidth || (appState.s2.isVertical ? 240 : 260);
-      const h = canvasEl.clientHeight || (appState.s2.isVertical ? 420 : 115);
+      const w = canvasEl.clientWidth || (appState.s2.isVertical ? 170 : 260);
+      const h = canvasEl.clientHeight || (appState.s2.isVertical ? 460 : 115);
       canvasEl.width = w;
       canvasEl.height = h;
 
+      // 背景色（すっきりとした白）
       ctx.fillStyle = '#ffffff';
       ctx.fillRect(0, 0, w, h);
 
@@ -3700,19 +3710,38 @@
         const baseCropW = norm.w * fullImg.width;
         const baseCropH = norm.h * fullImg.height;
 
-        // 縦横比を一切崩さず、解答枠全体を中央に収める等比スケーリング
-        const scaleFactor = Math.max(baseCropW / w, baseCropH / h);
-        const viewW = w * scaleFactor;
-        const viewH = h * scaleFactor;
+        if (appState.s2.isVertical) {
+          // 【縦書きモード】
+          // 解答枠の高さ・幅がCanvas内にぴったり収まる等比スケーリング
+          const paddingY = 8;
+          const scale = Math.min((h - paddingY * 2) / baseCropH, (w - 12) / baseCropW, 2.5);
+          const renderW = Math.round(baseCropW * scale);
+          const renderH = Math.round(baseCropH * scale);
 
-        // 枠の中心座標（手動ドラッグのずらしオフセット含む）
-        const centerX = baseCropX + baseCropW / 2 - offset.x * scaleFactor;
-        const centerY = baseCropY + baseCropH / 2 - offset.y * scaleFactor;
+          // 中央配置 ＋ ドラッグによる位置微調整
+          const renderX = Math.round((w - renderW) / 2 + offset.x);
+          const renderY = Math.round((h - renderH) / 2 + offset.y);
 
-        const cropX = centerX - viewW / 2;
-        const cropY = centerY - viewH / 2;
+          ctx.save();
+          // ★ 設定した枠（baseCropW × baseCropH）だけを元画像から切り出して描画（余計な隣列は一切入りません）
+          ctx.drawImage(fullImg, baseCropX, baseCropY, baseCropW, baseCropH, renderX, renderY, renderW, renderH);
 
-        ctx.drawImage(fullImg, cropX, cropY, viewW, viewH, 0, 0, w, h);
+          // 解答欄の輪郭線をうっすら描画（枠の境界がくっきり視認できます）
+          ctx.strokeStyle = '#cbd5e1';
+          ctx.lineWidth = 1;
+          ctx.strokeRect(renderX, renderY, renderW, renderH);
+          ctx.restore();
+
+        } else {
+          // 【通常・横長モード】
+          const scale = w / baseCropW;
+          const renderH = Math.round(baseCropH * scale);
+          const renderY = Math.round((h - renderH) / 2 + offset.y);
+
+          ctx.save();
+          ctx.drawImage(fullImg, baseCropX - offset.x * (baseCropW / w), baseCropY, baseCropW, baseCropH, 0, renderY, w, renderH);
+          ctx.restore();
+        }
       }
     }
 
