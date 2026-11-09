@@ -2392,7 +2392,7 @@
       }
     }
 
-    // ================= 9. 高度な解答枠自動検出（縦長枠対応版） =================
+　　// ================= 9. 高度な解答枠自動検出（斜めスキャン＆超縦長枠 耐性強化版） =================
     function detectBoxAtPoint(startX, startY) {
       const pageInfo = appState.s1.pages.find(p => p.pageNum === appState.s1.currentPage);
       if (!pageInfo || !pageInfo.canvas) return null;
@@ -2405,9 +2405,9 @@
       startX = Math.round(startX);
       startY = Math.round(startY);
 
-      // ★ 縦書き用に縦方向の探索半径を 1200px に大幅拡大
+      // 縦方向の探索半径を 1300px に設定
       const roiRadiusX = 450;
-      const roiRadiusY = 1200;
+      const roiRadiusY = 1300;
 
       const minRoiX = Math.max(0, startX - roiRadiusX);
       const minRoiY = Math.max(0, startY - roiRadiusY);
@@ -2421,6 +2421,7 @@
       const imgData = ctx.getImageData(minRoiX, minRoiY, roiW, roiH);
       const data = imgData.data;
 
+      // 罫線判定：スキャン時の薄いグレーの傾きノイズも拾えるよう輝度を調整
       function isDarkPixel(rx, ry) {
         if (rx < 0 || rx >= roiW || ry < 0 || ry >= roiH) return 1;
         const idx = (ry * roiW + rx) * 4;
@@ -2428,9 +2429,10 @@
         const g = data[idx + 1];
         const b = data[idx + 2];
         const brightness = 0.299 * r + 0.587 * g + 0.114 * b;
-        return brightness < 135 ? 1 : 0;
+        return brightness < 145 ? 1 : 0;
       }
 
+      // 斜め線のジャギーによる隙間漏れを防ぐ十字ブロッカー
       function isBlocked(rx, ry) {
         if (isDarkPixel(rx, ry)) return true;
         if (isDarkPixel(rx + 1, ry) || isDarkPixel(rx - 1, ry) ||
@@ -2470,7 +2472,7 @@
         if (cy < boundMinY) boundMinY = cy;
         if (cy > boundMaxY) boundMaxY = cy;
 
-        // 探索境界への接触判定
+        // ROIの端まで突き抜けた場合（枠線が途切れて外側に漏れ出た）のみ破棄
         if (cx <= 1 || cx >= roiW - 2 || cy <= 1 || cy >= roiH - 2) {
           return null;
         }
@@ -2496,17 +2498,25 @@
       const boxW = boundMaxX - boundMinX;
       const boxH = boundMaxY - boundMinY;
 
-      // ★ 縦長サイズ（最大2200pxまで）を許容
-      if (boxW < 20 || boxH < 20 || boxW > roiRadiusX * 1.8 || boxH > roiRadiusY * 1.9) {
+      // 極小ノイズや画面全体の誤検出を除外
+      if (boxW < 18 || boxH < 18 || boxW > roiRadiusX * 1.85 || boxH > roiRadiusY * 1.95) {
         return null;
       }
 
       const rectArea = boxW * boxH;
       const ratio = filledCount / rectArea;
 
-      // 細長い枠は内部の文字で白比率が下がりやすいため、アスペクト比に応じて閾値を緩和
-      const isNarrowVertical = (boxH / boxW) > 2.5;
-      const minRatio = isNarrowVertical ? 0.52 : 0.68;
+      // ★ 傾き耐性の動的計算：
+      // アスペクト比（細長さ）が高い枠ほど、わずかな傾きで外接矩形が横に膨らむため、
+      // 縦長度合いに応じて閾値を 0.35 まで柔軟に緩和
+      const aspectRatio = boxH / boxW;
+      let minRatio = 0.65;
+      if (aspectRatio > 3.0) {
+        minRatio = 0.35; // 斜めスキャンされた超縦長枠を確実に救済
+      } else if (aspectRatio > 1.8) {
+        minRatio = 0.45;
+      }
+
       if (ratio < minRatio) return null;
 
       return {
