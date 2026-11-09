@@ -69,6 +69,37 @@
 
     .grid-size-5 { grid-template-columns: repeat(auto-fill, minmax(460px, 1fr)); }
     .grid-size-5 .peeking-window { height: 220px; }
+   
+    /* 縦書き採点レイアウト（横スクロール1列短冊スタイル） */
+    .vertical-scroll-layout {
+      display: flex !important;
+      flex-direction: row !important;
+      flex-wrap: nowrap !important;
+      align-items: stretch !important;
+      height: 100% !important;
+      overflow-x: auto !important;
+      overflow-y: hidden !important;
+      padding-bottom: 12px !important;
+    }
+    .vertical-scroll-layout .student-card {
+      min-width: 240px !important;
+      max-width: 260px !important;
+      height: 100% !important;
+      flex-shrink: 0 !important;
+      display: flex !important;
+      flex-direction: column !important;
+      justify-content: space-between !important;
+    }
+    .vertical-scroll-layout .peeking-window {
+      flex: 1 !important;
+      height: 100% !important;
+      min-height: 280px !important;
+    }
+
+    /* 番号確認モーダルの縦書き拡大スタイル */
+    .vertical-num-modal-box {
+      height: 160px !important;
+    }
   </style>
 </head>
 <body class="h-screen w-screen flex flex-col bg-slate-900 text-slate-100 overflow-hidden">
@@ -578,6 +609,11 @@
       </div>
 
       <div class="flex items-center space-x-3 text-[11px]">
+        <!-- 縦書き（横スクロール短冊）切替スイッチ -->
+        <button type="button" id="btn-toggle-vertical-s2" class="px-2 py-0.5 rounded-lg text-[11px] font-bold bg-slate-900 hover:bg-slate-800 text-slate-300 border border-slate-700 transition flex items-center space-x-1 shadow" title="国語などの縦書き・縦長解答を横一列に並べて採点">
+          <i class="fa-solid fa-arrows-up-down text-[10px] text-indigo-400"></i>
+          <span>縦書き</span>
+        </button>
         <!-- ★ 5段階タイルサイズ切替UI -->
         <div class="flex items-center space-x-1 bg-slate-900 border border-slate-700 px-2 py-0.5 rounded-lg text-xs">
           <span class="text-slate-400 text-[10px] font-bold"><i class="fa-solid fa-table-cells mr-1"></i>サイズ:</span>
@@ -673,6 +709,12 @@
           <i class="fa-solid fa-id-card-clip text-amber-400 text-base"></i>
           <h3 class="font-bold text-sm text-white">出席番号・氏名 照合・修正</h3>
           <span class="text-xs text-slate-400">（P.1 表面の番号枠・氏名枠を表示）</span>
+        </div>
+        <div class="flex items-center space-x-3">
+          <button type="button" id="btn-toggle-vertical-num" class="px-2.5 py-1 bg-slate-900 hover:bg-slate-700 text-slate-300 rounded-lg border border-slate-700 text-xs font-bold transition flex items-center space-x-1.5" title="縦書きの氏名・番号欄を見やすく縦長表示に切替">
+            <i class="fa-solid fa-arrows-up-down text-[10px] text-amber-400"></i>
+            <span>縦書き表示</span>
+          </button>
         </div>
         <button onclick="closeStudentNumModal()" class="text-slate-400 hover:text-white p-1 text-lg"><i class="fa-solid fa-xmark"></i></button>
       </div>
@@ -1244,6 +1286,7 @@
         filter: 'all',
         tileOffsets: {},
         modalViewPage: 1,
+        isVertical: false,
         gridSize: parseInt(localStorage.getItem('d_saiten_grid_size'), 10) || 3, // ★ 5段階タイルサイズ (1〜5, デフォルト3: 中)
         stampState: {
           currentTool: 'hand',
@@ -3500,7 +3543,7 @@
       }
     }
 
-    // タイル一覧の全体生成（設問切替時やフィルタ切替時のみ実行）
+    // タイル一覧の全体生成（縦書き横スクロール対応）
     function renderS2Tiles() {
       if (appState.s2.students.length === 0) {
         s2EmptyWorkspace.classList.remove('hidden');
@@ -3515,9 +3558,13 @@
       const curQ = appState.s2.questions[appState.s2.currentQIndex];
       if (!curQ) return;
 
-      // 5段階タイルサイズクラスの適用
+      // ★ 縦書きモード時は「横スクロール1列」、通常時は「グリッド」を適用
       const currentSize = appState.s2.gridSize || 3;
-      s2TilesGrid.className = `grid gap-3 grid-size-${currentSize}`;
+      if (appState.s2.isVertical) {
+        s2TilesGrid.className = 'vertical-scroll-layout gap-3';
+      } else {
+        s2TilesGrid.className = `grid gap-3 grid-size-${currentSize}`;
+      }
 
       let mismatchCount = 0;
 
@@ -3557,7 +3604,7 @@
         const offset = appState.s2.tileOffsets[idx] || { x: 0, y: 0 };
 
         card.innerHTML = `
-          <div class="flex items-center justify-between mb-1.5 pb-1 border-b border-slate-700">
+          <div class="flex items-center justify-between mb-1.5 pb-1 border-b border-slate-700 shrink-0">
             <span class="std-num-hover-badge cursor-help px-1.5 py-0.5 bg-slate-900 hover:bg-indigo-900 rounded border border-slate-700 hover:border-indigo-400 font-mono font-bold text-xs text-white transition flex items-center space-x-1" data-index="${idx}">
               <i class="fa-solid fa-user text-[10px] text-teal-400"></i>
               <span>#${std.studentNum}</span>
@@ -3570,7 +3617,7 @@
               ${offset.x !== 0 || offset.y !== 0 ? 'ずらし中' : 'ドラッグ可'}
             </div>
           </div>
-          <div class="mt-1.5 flex justify-between items-center text-[10px] text-slate-400 font-mono">
+          <div class="mt-1.5 flex justify-between items-center text-[10px] text-slate-400 font-mono shrink-0">
             <span class="truncate max-w-[90px]">${std.name || '生徒'}</span>
             <span>配点: ${curQ.points} (P.${curQ.page || 1})</span>
           </div>
@@ -3631,10 +3678,11 @@
       tooltipEl.classList.add('hidden');
     }
 
+    // ★ アスペクト比を完全維持する高精度タイル描画
     function drawPeekingTile(canvasEl, student, question, offset) {
       const ctx = canvasEl.getContext('2d');
-      const w = canvasEl.clientWidth || 260;
-      const h = canvasEl.clientHeight || 115;
+      const w = canvasEl.clientWidth || (appState.s2.isVertical ? 240 : 260);
+      const h = canvasEl.clientHeight || (appState.s2.isVertical ? 420 : 115);
       canvasEl.width = w;
       canvasEl.height = h;
 
@@ -3651,10 +3699,20 @@
         const baseCropY = norm.y * fullImg.height;
         const baseCropW = norm.w * fullImg.width;
         const baseCropH = norm.h * fullImg.height;
-        const scaleFactor = baseCropW / w;
-        const cropX = baseCropX - offset.x * scaleFactor;
-        const cropY = baseCropY - offset.y * scaleFactor;
-        ctx.drawImage(fullImg, cropX, cropY, baseCropW, baseCropH, 0, 0, w, h);
+
+        // 縦横比を一切崩さず、解答枠全体を中央に収める等比スケーリング
+        const scaleFactor = Math.max(baseCropW / w, baseCropH / h);
+        const viewW = w * scaleFactor;
+        const viewH = h * scaleFactor;
+
+        // 枠の中心座標（手動ドラッグのずらしオフセット含む）
+        const centerX = baseCropX + baseCropW / 2 - offset.x * scaleFactor;
+        const centerY = baseCropY + baseCropH / 2 - offset.y * scaleFactor;
+
+        const cropX = centerX - viewW / 2;
+        const cropY = centerY - viewH / 2;
+
+        ctx.drawImage(fullImg, cropX, cropY, viewW, viewH, 0, 0, w, h);
       }
     }
 
@@ -4344,6 +4402,8 @@
       triggerAutoSave();
     }
 
+    let isVerticalNumMode = false; // 出席番号モーダルの縦書きフラグ
+
     function renderStudentNumModal() {
       studentNumList.innerHTML = '';
       const numBox = appState.s2.metaBoxes.find(b => b.category === 'student_num');
@@ -4357,12 +4417,14 @@
         return;
       }
 
+      // 縦書きモード時のプレビュー枠高さクラス
+      const boxHeightClass = isVerticalNumMode ? 'vertical-num-modal-box' : 'h-14';
+
       appState.s2.students.forEach((std, idx) => {
         const row = document.createElement('div');
         row.className = 'grid grid-cols-12 gap-2 items-center bg-slate-800/80 p-2 rounded border border-slate-700 text-xs';
 
         const p1Img = std.fullPageImgElements && std.fullPageImgElements[0];
-
         let numImgSrc = '';
         let nameImgSrc = '';
 
@@ -4389,10 +4451,10 @@
 
         row.innerHTML = `
           <span class="col-span-1 font-mono text-slate-400 font-bold">#${idx + 1}</span>
-          <div class="col-span-4 h-14 bg-white rounded border border-slate-600 flex items-center justify-center overflow-hidden p-1">
+          <div class="col-span-4 ${boxHeightClass} bg-white rounded border border-slate-600 flex items-center justify-center overflow-hidden p-1 shadow-inner transition-all duration-200">
             ${numImgSrc ? `<img src="${numImgSrc}" class="max-h-full max-w-full object-contain">` : '<span class="text-slate-400 text-[10px]">番号枠なし</span>'}
           </div>
-          <div class="col-span-4 h-14 bg-white rounded border border-slate-600 flex items-center justify-center overflow-hidden p-1">
+          <div class="col-span-4 ${boxHeightClass} bg-white rounded border border-slate-600 flex items-center justify-center overflow-hidden p-1 shadow-inner transition-all duration-200">
             ${nameImgSrc ? `<img src="${nameImgSrc}" class="max-h-full max-w-full object-contain">` : '<span class="text-slate-400 text-[10px]">氏名枠なし</span>'}
           </div>
           <div class="col-span-3 flex items-center justify-between space-x-1.5">
@@ -4400,7 +4462,6 @@
               <input type="number" min="1" value="${std.studentNum}" data-index="${idx}" class="std-num-input w-16 bg-slate-900 border border-slate-600 rounded px-1.5 py-1 text-white font-mono font-bold text-center text-sm focus:border-indigo-500 outline-none">
               <span class="text-slate-400 text-[11px]">番</span>
             </div>
-            <!-- ★ 個別削除ボタン（ゴミ箱） -->
             <button type="button" class="btn-delete-student p-1.5 text-rose-400 hover:text-rose-200 hover:bg-rose-950/60 rounded border border-transparent hover:border-rose-800 transition shrink-0" data-index="${idx}" title="この答案データを削除">
               <i class="fa-solid fa-trash-can text-sm pointer-events-none"></i>
             </button>
@@ -4409,7 +4470,6 @@
         studentNumList.appendChild(row);
       });
 
-      // 番号入力イベント
       document.querySelectorAll('.std-num-input').forEach((input, i, allInputs) => {
         input.addEventListener('change', (e) => {
           const idx = parseInt(e.target.dataset.index, 10);
@@ -4428,14 +4488,13 @@
         });
       });
 
-      // ★ 個別削除ボタンのイベント登録
       document.querySelectorAll('.btn-delete-student').forEach(btn => {
         btn.addEventListener('click', (e) => {
           const idx = parseInt(e.target.dataset.index, 10);
           const targetStd = appState.s2.students[idx];
           if (!targetStd) return;
 
-          if (confirm(`【答案の削除確認】\n出席番号 ${targetStd.studentNum}番（${targetStd.name}）の答案データを完全に削除しますか？\n※この操作は取り消せません。`)) {
+          if (confirm(`【答案の削除確認】\n出席番号 ${targetStd.studentNum}番（${targetStd.name}）の答案データを完全に削除しますか？`)) {
             appState.s2.students.splice(idx, 1);
             if (appState.s2.activeStudentIndex >= appState.s2.students.length) {
               appState.s2.activeStudentIndex = Math.max(0, appState.s2.students.length - 1);
@@ -4446,6 +4505,33 @@
             triggerAutoSave();
           }
         });
+      });
+    }
+
+    // ★ 縦書き切替ボタンのイベントリスナー登録
+    const btnToggleVerticalS2 = document.getElementById('btn-toggle-vertical-s2');
+    if (btnToggleVerticalS2) {
+      btnToggleVerticalS2.addEventListener('click', () => {
+        appState.s2.isVertical = !appState.s2.isVertical;
+        if (appState.s2.isVertical) {
+          btnToggleVerticalS2.className = 'px-2 py-0.5 rounded-lg text-[11px] font-bold bg-indigo-600 text-white shadow transition flex items-center space-x-1';
+        } else {
+          btnToggleVerticalS2.className = 'px-2 py-0.5 rounded-lg text-[11px] font-bold bg-slate-900 hover:bg-slate-800 text-slate-300 border border-slate-700 transition flex items-center space-x-1 shadow';
+        }
+        renderS2Tiles();
+      });
+    }
+
+    const btnToggleVerticalNum = document.getElementById('btn-toggle-vertical-num');
+    if (btnToggleVerticalNum) {
+      btnToggleVerticalNum.addEventListener('click', () => {
+        isVerticalNumMode = !isVerticalNumMode;
+        if (isVerticalNumMode) {
+          btnToggleVerticalNum.className = 'px-2.5 py-1 bg-amber-600 text-white rounded-lg border border-amber-500 text-xs font-bold transition flex items-center space-x-1.5 shadow';
+        } else {
+          btnToggleVerticalNum.className = 'px-2.5 py-1 bg-slate-900 hover:bg-slate-700 text-slate-300 rounded-lg border border-slate-700 text-xs font-bold transition flex items-center space-x-1.5';
+        }
+        renderStudentNumModal();
       });
     }
 
