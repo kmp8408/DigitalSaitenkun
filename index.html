@@ -4430,7 +4430,10 @@
       studentNumModal.classList.remove('hidden');
       setTimeout(() => {
         const firstInput = document.querySelector('.std-num-input');
-        if (firstInput) firstInput.focus();
+        if (firstInput) {
+          firstInput.focus();
+          firstInput.select(); // ★ 1枚目の数字を全選択（反転）状態にする
+        }
       }, 100);
     });
 
@@ -4510,13 +4513,18 @@
       });
 
       document.querySelectorAll('.std-num-input').forEach((input, i, allInputs) => {
-        input.addEventListener('change', (e) => {
+        // ★ 'change' から 'input' に変更し、打った瞬間にリアルタイム確定
+        input.addEventListener('input', (e) => {
           const idx = parseInt(e.target.dataset.index, 10);
           const val = parseInt(e.target.value, 10);
           if (!isNaN(val)) {
             appState.s2.students[idx].studentNum = val;
             appState.s2.students[idx].name = `生徒 ${val}`;
           }
+        });
+        // ★ マウスクリックやTab移動で欄に入った時も自動で数字を全選択
+        input.addEventListener('focus', (e) => {
+          e.target.select();
         });
         input.addEventListener('keydown', (e) => {
           if (e.key === 'Enter') {
