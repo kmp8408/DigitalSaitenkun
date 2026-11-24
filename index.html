@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>でじたる採点くん Ver 6.1</title>
+  <title>でじたる採点くん Ver 7.0</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script>
@@ -111,7 +111,7 @@
         <i class="fa-solid fa-pen-ruler text-xs"></i>
       </div>
       <span class="font-bold text-sm tracking-wide text-white">でじたる採点くん</span>
-      <span class="text-[10px] bg-slate-800 text-slate-400 px-2 py-0.5 rounded font-mono">Ver 6.1</span>
+      <span class="text-[10px] bg-slate-800 text-slate-400 px-2 py-0.5 rounded font-mono">Ver 7.0</span>
       <span id="autosave-indicator" class="text-[10px] text-emerald-400 flex items-center space-x-1 ml-2">
         <i class="fa-solid fa-cloud-arrow-up"></i><span>自動保存済</span>
       </span>
@@ -643,23 +643,161 @@
       </div>
     </div>
 
-    <!-- 採点タイルグリッド（★可変グリッド対応） -->
-    <main id="s2-grid-container" class="flex-1 overflow-y-auto p-4 bg-slate-950">
-      <div id="s2-empty-workspace" class="h-full flex flex-col items-center justify-center text-center p-6">
-        <div class="max-w-md bg-slate-800/80 p-8 rounded-2xl border border-slate-700 shadow-2xl backdrop-blur">
-          <i class="fa-solid fa-graduation-cap text-5xl text-indigo-400 mb-4 block"></i>
-          <h2 class="text-lg font-bold text-white mb-2">生徒答案PDFを読み込んでください</h2>
-          <div class="text-left text-xs text-slate-300 space-y-2 mb-6 bg-slate-900/60 p-3.5 rounded-lg border border-slate-700 leading-relaxed">
-            <div><b>① 用紙向きの補正:</b><br>アップロード後に自動で向き確認画面が開きます（90度ずつ回転可能）。</div>
-            <div><b>② 複数ページ自動グループ化:</b><br>Step 1 で設定したページ数（例: 表裏2ページ）に基づき自動分割されます。</div>
+        <!-- 採点メインエリア（一覧グリッド ⇄ 1枚フル拡大＋左縦スタンプバー） -->
+    <div id="s2-workspace-body" class="flex-1 flex overflow-hidden bg-slate-950 relative">
+
+      <!-- ★ 左サイドバー：赤ペンスタンプ縦ツールバー（1枚フル拡大モード時のみ表示） -->
+      <aside id="s2-left-stamp-sidebar" class="hidden w-20 bg-slate-900 border-r border-slate-800 flex flex-col items-center py-2.5 px-1.5 space-y-1.5 shrink-0 z-20 select-none overflow-y-auto shadow-xl">
+        <span class="text-[9px] font-bold text-slate-400 tracking-wider mb-0.5"><i class="fa-solid fa-stamp text-amber-400 mr-0.5"></i>赤ペン</span>
+
+        <button type="button" data-tool="hand" class="stamp-tool-btn w-full py-1.5 rounded-lg font-bold bg-indigo-600 text-white transition flex flex-col items-center justify-center text-[10px] space-y-0.5 shadow" title="用紙の移動・拡大縮小">
+          <i class="fa-solid fa-hand text-xs"></i><span>移動</span>
+        </button>
+
+        <div class="w-10 h-px bg-slate-800 my-0.5"></div>
+
+        <button type="button" data-tool="bracket" class="stamp-tool-btn w-full py-1.5 rounded-lg font-bold bg-slate-800 text-rose-400 hover:bg-slate-700 transition flex flex-col items-center justify-center text-[10px] space-y-0.5 font-mono" title="カッコおわり（右下）">
+          <span class="text-sm font-black leading-none">」</span><span>カッコ</span>
+        </button>
+        <button type="button" data-tool="bracket_rev" class="stamp-tool-btn w-full py-1.5 rounded-lg font-bold bg-slate-800 text-rose-400 hover:bg-slate-700 transition flex flex-col items-center justify-center text-[10px] space-y-0.5 font-mono" title="縦書き用 反転カッコ（左下）">
+          <span class="text-sm font-black leading-none" style="display:inline-block; transform: scaleX(-1);">」</span><span>反転</span>
+        </button>
+        <button type="button" data-tool="circle" class="stamp-tool-btn w-full py-1.5 rounded-lg font-bold bg-slate-800 text-rose-400 hover:bg-slate-700 transition flex flex-col items-center justify-center text-[10px] space-y-0.5" title="丸マーク">
+          <i class="fa-regular fa-circle text-xs"></i><span>丸</span>
+        </button>
+        <button type="button" data-tool="wrong" class="stamp-tool-btn w-full py-1.5 rounded-lg font-bold bg-slate-800 text-rose-400 hover:bg-slate-700 transition flex flex-col items-center justify-center text-[10px] space-y-0.5" title="バツマーク">
+          <i class="fa-solid fa-xmark text-xs"></i><span>バツ</span>
+        </button>
+        <button type="button" data-tool="triangle" class="stamp-tool-btn w-full py-1.5 rounded-lg font-bold bg-slate-800 text-rose-400 hover:bg-slate-700 transition flex flex-col items-center justify-center text-[10px] space-y-0.5" title="三角マーク">
+          <span class="text-xs leading-none">▲</span><span>三角</span>
+        </button>
+        <button type="button" data-tool="line" class="stamp-tool-btn w-full py-1.5 rounded-lg font-bold bg-slate-800 text-rose-400 hover:bg-slate-700 transition flex flex-col items-center justify-center text-[10px] space-y-0.5" title="直線（Shift押しながらで水平・垂直固定）">
+          <i class="fa-solid fa-slash text-xs"></i><span>ライン</span>
+        </button>
+        <button type="button" data-tool="text" class="stamp-tool-btn w-full py-1.5 rounded-lg font-bold bg-slate-800 text-rose-400 hover:bg-slate-700 transition flex flex-col items-center justify-center text-[10px] space-y-0.5" title="文字スタンプ">
+          <i class="fa-solid fa-font text-xs"></i><span>文字</span>
+        </button>
+
+        <div class="w-10 h-px bg-slate-800 my-0.5"></div>
+
+        <!-- サイズ切替（縦コンパクト） -->
+        <span class="text-[9px] text-slate-400 font-bold">サイズ</span>
+        <div class="grid grid-cols-3 gap-0.5 w-full bg-slate-950 p-0.5 rounded-lg border border-slate-800 text-[10px]">
+          <button type="button" data-size="small" class="stamp-size-btn py-0.5 rounded font-bold text-slate-400 hover:text-white transition">小</button>
+          <button type="button" data-size="medium" class="stamp-size-btn py-0.5 rounded font-bold bg-indigo-600 text-white shadow">中</button>
+          <button type="button" data-size="large" class="stamp-size-btn py-0.5 rounded font-bold text-slate-400 hover:text-white transition">大</button>
+        </div>
+
+        <div class="w-10 h-px bg-slate-800 my-0.5"></div>
+
+        <!-- 戻す・全消去 -->
+        <button type="button" id="btn-undo-stamp" class="w-full py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-lg font-bold text-[10px] transition flex flex-col items-center space-y-0.5 border border-slate-700" title="直前のスタンプを1つ戻す (Ctrl+Z)">
+          <i class="fa-solid fa-rotate-left text-xs text-amber-400"></i><span>1つ戻す</span>
+        </button>
+        <button type="button" id="btn-clear-stamps" class="w-full py-1.5 bg-slate-800 hover:bg-rose-950/70 text-slate-400 hover:text-rose-300 rounded-lg font-bold text-[10px] transition flex flex-col items-center space-y-0.5 border border-slate-700" title="このページの書き込みを全消去">
+          <i class="fa-solid fa-trash-can text-xs"></i><span>全消去</span>
+        </button>
+      </aside>
+
+      <!-- 右メイン領域：一覧グリッド と 1枚フル拡大ビュー の切り替え -->
+      <main id="s2-grid-container" class="flex-1 overflow-y-auto p-4 bg-slate-950 relative">
+        <div id="s2-empty-workspace" class="h-full flex flex-col items-center justify-center text-center p-6">
+          <div class="max-w-md bg-slate-800/80 p-8 rounded-2xl border border-slate-700 shadow-2xl backdrop-blur">
+            <i class="fa-solid fa-graduation-cap text-5xl text-indigo-400 mb-4 block"></i>
+            <h2 class="text-lg font-bold text-white mb-2">生徒答案PDFを読み込んでください</h2>
+            <div class="text-left text-xs text-slate-300 space-y-2 mb-6 bg-slate-900/60 p-3.5 rounded-lg border border-slate-700 leading-relaxed">
+              <div><b>① 用紙向きの補正:</b><br>アップロード後に自動で向き確認画面が開きます（90度ずつ回転可能）。</div>
+              <div><b>② 複数ページ自動グループ化:</b><br>Step 1 で設定したページ数（例: 表裏2ページ）に基づき自動分割されます。</div>
+            </div>
+            <button onclick="document.getElementById('s2-students-pdf-input').click()" class="w-full py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs rounded-lg transition shadow">
+              答案PDFファイルを選択する
+            </button>
           </div>
-          <button onclick="document.getElementById('s2-students-pdf-input').click()" class="w-full py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs rounded-lg transition shadow">
-            答案PDFファイルを選択する
-          </button>
+        </div>
+        <div id="s2-tiles-grid" class="grid gap-3 grid-size-3 hidden"></div>
+      </main>
+
+      <!-- ★ 1枚フル拡大採点ビュー（Spaceキーで一覧表示とトグル切替） -->
+      <div id="s2-single-zoom-view" class="hidden flex-1 flex flex-col bg-slate-950 overflow-hidden relative">
+        <!-- 上部コントロールバー（生徒切替・得点・表示リセット・一覧へ戻る） -->
+        <div class="h-11 bg-slate-900/95 border-b border-slate-800 px-3 flex items-center justify-between shrink-0 gap-2">
+          <div class="flex items-center space-x-2">
+            <div class="flex items-center bg-slate-800 rounded-lg border border-slate-700 p-0.5">
+              <button type="button" id="btn-single-prev-student" class="px-2.5 py-1 hover:bg-slate-700 text-slate-200 rounded text-xs font-bold transition flex items-center space-x-1" title="前の生徒へ (← / ↑)">
+                <i class="fa-solid fa-chevron-left text-[10px] text-indigo-400"></i><span>前へ</span>
+              </button>
+              <span id="single-view-title" class="font-bold text-sm text-indigo-300 px-3 font-mono">#1 生徒 1</span>
+              <button type="button" id="btn-single-next-student" class="px-2.5 py-1 hover:bg-slate-700 text-slate-200 rounded text-xs font-bold transition flex items-center space-x-1" title="次の生徒へ (→ / ↓)">
+                <span>次へ</span><i class="fa-solid fa-chevron-right text-[10px] text-indigo-400"></i>
+              </button>
+            </div>
+
+            <!-- 現在の得点バッジ -->
+            <div id="single-current-score-badge" class="text-xs font-bold"></div>
+
+            <!-- 表・裏ページ切替タブ -->
+            <div id="single-page-tabs" class="flex items-center bg-slate-800 p-0.5 rounded-lg border border-slate-700 space-x-1 text-xs"></div>
+
+            <!-- 文字スタンプ選択時のみ表示されるテキスト入力ボックス -->
+            <div id="single-text-stamp-box" class="hidden items-center space-x-1.5 bg-rose-950/50 border border-rose-700/70 px-2.5 py-0.5 rounded-lg text-xs">
+              <span class="text-rose-300 font-bold text-[11px]">印字文字:</span>
+              <input type="text" id="stamp-custom-text" value="説明不足" class="w-28 bg-slate-950 border border-rose-600/60 rounded px-2 py-0.5 text-rose-200 font-bold text-xs outline-none focus:border-rose-400" placeholder="スタンプ文字">
+            </div>
+          </div>
+
+          <div class="flex items-center space-x-2 text-xs">
+            <!-- ★ 設問ごとのズーム・位置記憶リセットボタン -->
+            <button type="button" id="btn-single-reset-view" class="px-2.5 py-1 bg-slate-800 hover:bg-amber-900/50 text-amber-300 border border-slate-700 hover:border-amber-600/60 rounded-lg font-bold transition flex items-center space-x-1" title="この設問で記憶した拡大率・表示位置を初期状態に戻す">
+              <i class="fa-solid fa-rotate-left text-[11px]"></i><span>表示リセット</span>
+            </button>
+            <button type="button" id="btn-single-fit-paper" class="px-2.5 py-1 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 rounded-lg font-semibold transition flex items-center space-x-1" title="用紙全体を見渡す">
+              <i class="fa-solid fa-expand text-[11px] text-slate-400"></i><span>用紙全体</span>
+            </button>
+            <button type="button" id="btn-exit-single-zoom" class="px-3 py-1 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-lg shadow transition flex items-center space-x-1.5" title="一覧表示へ戻る (Spaceキー)">
+              <i class="fa-solid fa-table-cells text-[11px]"></i><span>一覧へ戻る (Space)</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- 広大な拡大キャンバス領域 -->
+        <div id="single-zoom-viewport" class="flex-1 w-full bg-slate-950 relative overflow-hidden cursor-grab">
+          <canvas id="single-zoom-canvas" class="block w-full h-full"></canvas>
+          <!-- 記憶状態インジケーター（右下） -->
+          <div id="single-view-memory-badge" class="hidden absolute bottom-3 right-3 bg-slate-900/85 border border-indigo-500/50 text-indigo-300 text-[11px] px-2.5 py-1 rounded-lg font-mono pointer-events-none shadow-lg">
+            <i class="fa-solid fa-thumbtack text-amber-400 mr-1"></i>表示位置・倍率を記憶中
+          </div>
+        </div>
+
+        <!-- 下部 採点アクションバー -->
+        <div class="h-11 bg-slate-900 border-t border-slate-800 px-4 flex items-center justify-between shrink-0">
+          <div class="flex items-center space-x-2">
+            <button type="button" id="btn-single-score-correct" class="px-4 py-1 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs rounded-lg shadow transition flex items-center space-x-1.5">
+              <i class="fa-solid fa-circle-check"></i><span>正解 (満点)</span>
+              <kbd id="single-key-badge-correct" class="ml-1 px-1.5 py-0.2 bg-emerald-800 border border-emerald-400/50 rounded text-[10px] font-mono">C</kbd>
+            </button>
+            <button type="button" id="btn-single-score-wrong" class="px-4 py-1 bg-rose-600 hover:bg-rose-500 text-white font-bold text-xs rounded-lg shadow transition flex items-center space-x-1.5">
+              <i class="fa-solid fa-xmark"></i><span>不正解 (0点)</span>
+              <kbd id="single-key-badge-wrong" class="ml-1 px-1.5 py-0.2 bg-rose-800 border border-rose-400/50 rounded text-[10px] font-mono">X</kbd>
+            </button>
+            <div class="flex items-center space-x-1 bg-slate-800 px-2 py-0.5 rounded-lg border border-slate-700">
+              <span class="text-[11px] text-slate-300 font-bold">部分点:</span>
+              <input type="number" id="single-partial-score-input" min="0" step="1" class="w-14 bg-slate-950 border border-slate-600 rounded px-1.5 py-0.5 text-white font-mono font-bold text-xs text-center outline-none focus:border-amber-500" placeholder="点数">
+              <button type="button" id="btn-single-score-partial" class="px-2.5 py-0.5 bg-amber-600 hover:bg-amber-500 text-white font-bold text-xs rounded transition">確定</button>
+            </div>
+            <button type="button" id="btn-single-score-unmark" class="px-2.5 py-1 bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-600 font-bold text-xs rounded-lg transition flex items-center space-x-1" title="採点を取り消して未採点状態に戻す (Delete / Backspace)">
+              <i class="fa-solid fa-eraser text-[11px] text-slate-400"></i><span>未採点に戻す</span>
+            </button>
+          </div>
+
+          <div class="text-[11px] text-slate-400 font-mono hidden sm:flex items-center space-x-3">
+            <span>🖱️ ホイール: 拡大縮小 / ドラッグ: 移動</span>
+            <span>⌨️ Space: 一覧に戻る</span>
+          </div>
         </div>
       </div>
-      <div id="s2-tiles-grid" class="grid gap-3 grid-size-3 hidden"></div>
-    </main>
+
+    </div>
+
   </div>
 
   <!-- ================= 答案PDF読込確認モーダル（3択） ================= -->
@@ -769,134 +907,6 @@
       <div class="p-3 bg-slate-800 border-t border-slate-700 flex justify-end space-x-2 shrink-0">
         <button onclick="cancelRotationModal()" class="px-3 py-1.5 rounded text-xs text-slate-400 hover:text-white transition">キャンセル</button>
         <button id="btn-confirm-rotation" class="px-5 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs rounded-lg transition shadow">この向きで確定する</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- 拡大モーダル（高さ固定版 ＋ スタンプツールバー） -->
-  <div id="zoom-modal" class="fixed inset-0 bg-slate-950/85 backdrop-blur-sm z-50 flex flex-col items-center justify-center p-4 hidden">
-    <div class="relative bg-slate-900 border border-slate-700 rounded-2xl p-4 shadow-2xl w-full max-w-5xl h-[85vh] flex flex-col overflow-hidden">
-      <div class="w-full flex justify-between items-center mb-3 shrink-0">
-        <div class="flex items-center space-x-2.5">
-          <!-- 前の生徒 / 次の生徒 切替ボタン -->
-          <div class="flex items-center bg-slate-800 rounded-lg border border-slate-700 p-0.5">
-            <button type="button" id="btn-modal-prev-student" class="px-2.5 py-1 hover:bg-slate-700 text-slate-200 rounded text-xs font-bold transition flex items-center space-x-1" title="前の生徒へ (←キー)">
-              <i class="fa-solid fa-chevron-left text-[10px] text-indigo-400"></i><span>前へ</span>
-            </button>
-            <span id="modal-title" class="font-bold text-sm text-indigo-300 px-3">出席番号 1番</span>
-            <button type="button" id="btn-modal-next-student" class="px-2.5 py-1 hover:bg-slate-700 text-slate-200 rounded text-xs font-bold transition flex items-center space-x-1" title="次の生徒へ (→キー)">
-              <span>次へ</span><i class="fa-solid fa-chevron-right text-[10px] text-indigo-400"></i>
-            </button>
-          </div>
-          <!-- 現在の得点ステータス表示 -->
-          <div id="modal-current-score-badge" class="text-xs font-bold"></div>
-          <div id="modal-page-tabs" class="flex items-center bg-slate-800 p-0.5 rounded-lg border border-slate-700 space-x-1 text-xs"></div>
-        </div>
-        <div class="flex items-center space-x-2 text-xs">
-          <button id="btn-modal-reset-view" class="px-3 py-1 bg-slate-800 hover:bg-slate-700 rounded-lg border border-slate-600 text-xs text-slate-200 font-semibold transition flex items-center space-x-1">
-            <i class="fa-solid fa-arrows-to-dot text-indigo-400"></i><span>設問にフォーカス</span>
-          </button>
-          <button id="btn-modal-fit-view" class="px-3 py-1 bg-slate-800 hover:bg-slate-700 rounded-lg border border-slate-600 text-xs text-slate-200 font-semibold transition flex items-center space-x-1">
-            <i class="fa-solid fa-expand text-slate-400"></i><span>用紙全体</span>
-          </button>
-          <button onclick="closeModal()" class="text-slate-400 hover:text-white p-1 text-xl ml-2"><i class="fa-solid fa-xmark"></i></button>
-        </div>
-      </div>
-
-      <!-- スタンプ・書き込みツールバー -->
-      <div id="stamp-toolbar" class="w-full bg-slate-800/90 border border-slate-700 rounded-xl px-3 py-1.5 mb-2.5 flex items-center justify-between text-xs shrink-0 select-none shadow">
-        <!-- ツール選択ボタン群 -->
-        <div class="flex items-center space-x-1 overflow-x-auto">
-          <span class="text-[10px] text-slate-400 font-bold mr-1 shrink-0"><i class="fa-solid fa-stamp text-amber-400 mr-1"></i>スタンプ:</span>
-          
-          <button type="button" data-tool="hand" class="stamp-tool-btn px-2.5 py-1 rounded-lg font-bold bg-indigo-600 text-white transition flex items-center space-x-1 shrink-0" title="用紙の移動・拡大縮小（スタンプなし）">
-            <i class="fa-solid fa-hand text-[11px]"></i><span>移動</span>
-          </button>
-
-          <div class="w-px h-4 bg-slate-700 mx-1 shrink-0"></div>
-
-          <button type="button" data-tool="bracket" class="stamp-tool-btn px-2.5 py-1 rounded-lg font-bold bg-slate-900 text-rose-400 hover:bg-slate-700 transition flex items-center space-x-1 shrink-0 font-mono" title="カッコおわり（右下）">
-            <span class="text-sm font-black leading-none">」</span><span>カッコ</span>
-          </button>
-          <button type="button" data-tool="bracket_rev" class="stamp-tool-btn px-2.5 py-1 rounded-lg font-bold bg-slate-900 text-rose-400 hover:bg-slate-700 transition flex items-center space-x-1 shrink-0 font-mono" title="縦書き用 反転カッコ（左下）">
-            <span class="text-sm font-black leading-none" style="display:inline-block; transform: scaleX(-1);">」</span><span>反転</span>
-          </button>
-
-          <button type="button" data-tool="circle" class="stamp-tool-btn px-2.5 py-1 rounded-lg font-bold bg-slate-900 text-rose-400 hover:bg-slate-700 transition flex items-center space-x-1 shrink-0" title="丸マーク">
-            <i class="fa-regular fa-circle text-xs"></i><span>丸</span>
-          </button>
-          <button type="button" data-tool="wrong" class="stamp-tool-btn px-2.5 py-1 rounded-lg font-bold bg-slate-900 text-rose-400 hover:bg-slate-700 transition flex items-center space-x-1 shrink-0" title="バツマーク">
-            <i class="fa-solid fa-xmark text-xs"></i><span>バツ</span>
-          </button>
-          <button type="button" data-tool="triangle" class="stamp-tool-btn px-2.5 py-1 rounded-lg font-bold bg-slate-900 text-rose-400 hover:bg-slate-700 transition flex items-center space-x-1 shrink-0" title="三角マーク">
-            <span class="text-xs">▲</span><span>三角</span>
-          </button>
-
-          <button type="button" data-tool="line" class="stamp-tool-btn px-2.5 py-1 rounded-lg font-bold bg-slate-900 text-rose-400 hover:bg-slate-700 transition flex items-center space-x-1 shrink-0" title="直線（Shift押しながらで水平・垂直固定）">
-            <i class="fa-solid fa-slash text-xs"></i><span>ライン</span>
-          </button>
-
-          <div class="w-px h-4 bg-slate-700 mx-1 shrink-0"></div>
-
-          <!-- 文字列スタンプ -->
-          <div class="flex items-center space-x-1 shrink-0 bg-slate-900 px-1.5 py-0.5 rounded-lg border border-slate-700">
-            <button type="button" data-tool="text" class="stamp-tool-btn px-2 py-0.5 rounded font-bold text-rose-400 hover:bg-slate-800 transition flex items-center space-x-1" title="文字スタンプ">
-              <i class="fa-solid fa-font text-xs"></i><span>文字</span>
-            </button>
-            <input type="text" id="stamp-custom-text" value="説明不足" class="w-24 bg-slate-950 border border-slate-700 rounded px-1.5 py-0.5 text-rose-300 font-bold text-[11px] outline-none focus:border-rose-500" placeholder="文字列">
-          </div>
-        </div>
-
-        <!-- サイズ指定 ＆ アンドゥ -->
-        <div class="flex items-center space-x-2 shrink-0 ml-2">
-          <!-- サイズ指定 -->
-          <div class="flex items-center space-x-1 bg-slate-900 px-2 py-0.5 rounded-lg border border-slate-700 text-[11px]">
-            <span class="text-slate-400">サイズ:</span>
-            <button type="button" data-size="small" class="stamp-size-btn px-1.5 py-0.2 rounded font-bold text-slate-400 hover:text-white transition">小</button>
-            <button type="button" data-size="medium" class="stamp-size-btn px-1.5 py-0.2 rounded font-bold bg-indigo-600 text-white shadow">中</button>
-            <button type="button" data-size="large" class="stamp-size-btn px-1.5 py-0.2 rounded font-bold text-slate-400 hover:text-white transition">大</button>
-          </div>
-
-          <!-- アンドゥ・全消去 -->
-          <button type="button" id="btn-undo-stamp" class="px-2 py-1 bg-slate-700 hover:bg-slate-600 text-slate-200 rounded font-semibold transition flex items-center space-x-1" title="直前のスタンプを1つ戻す (Ctrl+Z)">
-            <i class="fa-solid fa-rotate-left text-[11px]"></i><span>戻す</span>
-          </button>
-          <button type="button" id="btn-clear-stamps" class="px-2 py-1 bg-slate-700 hover:bg-rose-900/60 text-slate-300 hover:text-rose-200 rounded font-semibold transition flex items-center space-x-1" title="このページの書き込みを全消去">
-            <i class="fa-solid fa-trash-can text-[11px]"></i>
-          </button>
-        </div>
-      </div>
-
-      <div id="modal-viewport" class="flex-1 w-full bg-slate-950 rounded-xl border border-slate-700 relative overflow-hidden peeking-window cursor-grab">
-        <canvas id="modal-zoom-canvas" class="block w-full h-full"></canvas>
-      </div>
-
-      <!-- モーダル内 採点コントロールバー -->
-      <div class="w-full flex flex-wrap justify-between items-center gap-2 mt-3 pt-2.5 border-t border-slate-800 px-1 shrink-0">
-        <div class="flex items-center space-x-2">
-          <button type="button" id="btn-modal-score-correct" class="px-4 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs rounded-lg shadow transition flex items-center space-x-1.5" title="満点をつけて次の生徒へ">
-            <i class="fa-solid fa-circle-check"></i>
-            <span>正解 (満点)</span>
-            <kbd id="modal-key-badge-correct" class="ml-1 px-1.5 py-0.2 bg-emerald-800 border border-emerald-400/50 rounded text-[10px] font-mono">C</kbd>
-          </button>
-          <button type="button" id="btn-modal-score-wrong" class="px-4 py-1.5 bg-rose-600 hover:bg-rose-500 text-white font-bold text-xs rounded-lg shadow transition flex items-center space-x-1.5" title="0点をつけて次の生徒へ">
-            <i class="fa-solid fa-xmark"></i>
-            <span>不正解 (0点)</span>
-            <kbd id="modal-key-badge-wrong" class="ml-1 px-1.5 py-0.2 bg-rose-800 border border-rose-400/50 rounded text-[10px] font-mono">X</kbd>
-          </button>
-          <div class="flex items-center space-x-1 bg-slate-800 px-2 py-1 rounded-lg border border-slate-700">
-            <span class="text-[11px] text-slate-300 font-bold">部分点:</span>
-            <input type="number" id="modal-partial-score-input" min="0" step="1" class="w-14 bg-slate-950 border border-slate-600 rounded px-1.5 py-0.5 text-white font-mono font-bold text-xs text-center outline-none focus:border-amber-500" placeholder="点数">
-            <button type="button" id="btn-modal-score-partial" class="px-2.5 py-0.5 bg-amber-600 hover:bg-amber-500 text-white font-bold text-xs rounded transition">
-              確定
-            </button>
-          </div>
-        </div>
-
-        <div class="text-[11px] text-slate-400 font-mono flex items-center space-x-3">
-          <span>💡 採点後は自動で次の生徒へ進みます</span>
-          <span>Space / Esc で閉じる</span>
-        </div>
       </div>
     </div>
   </div>
@@ -1327,7 +1337,10 @@
         filter: 'all',
         tileOffsets: {},
         modalViewPage: 1,
+        isSingleZoomMode: false, // ★ 1枚フル拡大モード状態
+        questionViewMemory: {},  // ★ 設問IDごとの { scale, panX, panY } 記憶マップ
         isVertical: false,
+
         gridSize: parseInt(localStorage.getItem('d_saiten_grid_size'), 10) || 3, // ★ 5段階タイルサイズ (1〜5, デフォルト3: 中)
         stampState: {
           currentTool: 'hand',
@@ -1390,14 +1403,17 @@
     const keyLabelNextQ = document.getElementById('key-label-next-q');
     const autosaveIndicator = document.getElementById('autosave-indicator');
 
-    const zoomModal = document.getElementById('zoom-modal');
-    const modalTitle = document.getElementById('modal-title');
-    const modalPageTabs = document.getElementById('modal-page-tabs');
-    const modalViewport = document.getElementById('modal-viewport');
-    const modalZoomCanvas = document.getElementById('modal-zoom-canvas');
-    const modalZoomCtx = modalZoomCanvas.getContext('2d');
-    const btnModalResetView = document.getElementById('btn-modal-reset-view');
-    const btnModalFitView = document.getElementById('btn-modal-fit-view');
+    const s2GridContainer = document.getElementById('s2-grid-container');
+    const s2LeftStampSidebar = document.getElementById('s2-left-stamp-sidebar');
+    const s2SingleZoomView = document.getElementById('s2-single-zoom-view');
+    const singleViewTitle = document.getElementById('single-view-title');
+    const singlePageTabs = document.getElementById('single-page-tabs');
+    const singleZoomViewport = document.getElementById('single-zoom-viewport');
+    const singleZoomCanvas = document.getElementById('single-zoom-canvas');
+    const singleZoomCtx = singleZoomCanvas.getContext('2d');
+    const btnSingleResetView = document.getElementById('btn-single-reset-view');
+    const btnSingleFitPaper = document.getElementById('btn-single-fit-paper');
+    const singleViewMemoryBadge = document.getElementById('single-view-memory-badge');
 
     const rotationModal = document.getElementById('rotation-modal');
     const rotationPreviewCanvas = document.getElementById('rotation-preview-canvas');
@@ -1470,13 +1486,29 @@
         e.preventDefault();
         e.stopPropagation();
         const key = e.key.toLowerCase();
-        if (/^[0-9]$/.test(key) || key === 'tab' || key === 'enter' || key === 'escape' || key === ' ') {
-          alert('数字・Enter・Tab・Esc・Spaceキーは固定機能のため割り当てできません。別のキーを押してください。');
+        if (/^[0-9]$/.test(key) || key === 'tab' || key === 'enter' || key === 'escape' || key === ' ' || key === 'delete' || key === 'backspace' || key.startsWith('arrow')) {
+          alert('数字・矢印・Enter・Tab・Esc・Space・Delete/Backspaceキーは固定機能のため割り当てできません。別のキーを押してください。');
           clearKeyListening();
           return;
         }
 
         const type = appState.listeningKeyType;
+
+        // 重複チェック（他の機能ですでに使われているキーは登録不可）
+        const keyLabels = {
+          correct: '満点',
+          wrong: '0点',
+          prevQ: '前の設問',
+          nextQ: '次の設問'
+        };
+        for (const [kType, assignedKey] of Object.entries(appState.customKeys)) {
+          if (kType !== type && assignedKey === key) {
+            alert(`キー「${formatKeyDisplay(key)}」はすでに「${keyLabels[kType]}」に割り当てられています。\n重複を避けるため別のキーを押してください。`);
+            clearKeyListening();
+            return;
+          }
+        }
+
         if (type === 'correct') { appState.customKeys.correct = key; localStorage.setItem('d_saiten_key_correct', key); }
         else if (type === 'wrong') { appState.customKeys.wrong = key; localStorage.setItem('d_saiten_key_wrong', key); }
         else if (type === 'prevQ') { appState.customKeys.prevQ = key; localStorage.setItem('d_saiten_key_prev_q', key); }
@@ -2464,7 +2496,7 @@
       }
     }
 
-　　// ================= 9. 高度な解答枠自動検出（斜めスキャン＆超縦長枠 耐性強化版） =================
+    // ================= 9. 高度な解答枠自動検出（斜めスキャン＆超縦長枠 耐性強化版） =================
     function detectBoxAtPoint(startX, startY) {
       const pageInfo = appState.s1.pages.find(p => p.pageNum === appState.s1.currentPage);
       if (!pageInfo || !pageInfo.canvas) return null;
@@ -3476,6 +3508,7 @@
       updateS2HeaderAndModelView();
       renderS2Tiles();
       updateS2Progress();
+      refreshSingleZoomViewForCurrentStudent();
       document.getElementById('s2-grid-container').scrollTop = 0;
     }
 
@@ -3520,8 +3553,12 @@
 
     // ★ 5段階タイルサイズ切替処理
     function applyTileSize(sizeNum) {
+      if (appState.s2.isSingleZoomMode) {
+        exitSingleZoomMode();
+      }
       const size = Math.max(1, Math.min(5, parseInt(sizeNum, 10) || 3));
       appState.s2.gridSize = size;
+
       localStorage.setItem('d_saiten_grid_size', size);
 
       // グリッドコンテナのクラスタグを差し替え
@@ -3875,75 +3912,22 @@
       });
     }
 
-    // ================= 12. Step 2 採点キーバインド =================
+    // ================= 12. Step 2 採点キーバインド（一覧 ⇄ 1枚フル拡大 統合版） =================
     window.addEventListener('keydown', (e) => {
       if (appState.currentStep !== 2) return;
       if (appState.listeningKeyType) return;
 
-      // 拡大モーダル表示中のキー操作（採点・生徒切替・閉じる）
-      if (!zoomModal.classList.contains('hidden')) {
-        if (document.activeElement.tagName === 'INPUT' || document.activeElement.tagName === 'TEXTAREA') {
-          if (e.key === 'Escape') {
-            e.preventDefault();
-            closeModal();
-          }
-          return;
-        }
-        if (e.code === 'Space' || e.key === 'Escape') {
-          e.preventDefault();
-          closeModal();
-          return;
-        }
-        if (appState.s2.students.length === 0 || appState.s2.questions.length === 0) return;
-        const curQ = appState.s2.questions[appState.s2.currentQIndex];
-        const maxPts = curQ.points;
-        const pressedKey = e.key.toLowerCase();
-
-        if (pressedKey === appState.customKeys.correct) {
-          e.preventDefault();
-          scoreInModalAndNext(maxPts);
-          return;
-        }
-        if (pressedKey === appState.customKeys.wrong) {
-          e.preventDefault();
-          scoreInModalAndNext(0);
-          return;
-        }
-        if (/^[0-9]$/.test(e.key)) {
-          e.preventDefault();
-          const inputNum = parseInt(e.key, 10);
-          if (inputNum <= maxPts) scoreInModalAndNext(inputNum);
-          return;
-        }
-        // 通常画面と同じく「→ / ↓」で次の生徒、「← / ↑」で前の生徒へ移動
-        if (e.key === 'ArrowRight' || e.key === 'ArrowDown') { e.preventDefault(); switchStudentInModal(1); return; }
-        if (e.key === 'ArrowLeft' || e.key === 'ArrowUp')    { e.preventDefault(); switchStudentInModal(-1); return; }
-
-        // ユーザー割り当ての設問切替キーにも対応
-        if (pressedKey === appState.customKeys.prevQ) {
-          e.preventDefault();
-          if (appState.s2.currentQIndex > 0) {
-            onS2QuestionChanged(appState.s2.currentQIndex - 1);
-            switchStudentInModal(0);
-          }
-          return;
-        }
-        if (pressedKey === appState.customKeys.nextQ) {
-          e.preventDefault();
-          if (appState.s2.currentQIndex < appState.s2.questions.length - 1) {
-            onS2QuestionChanged(appState.s2.currentQIndex + 1);
-            switchStudentInModal(0);
-          }
-          return;
-        }
-        return;
-      }
-
+      // 番号確認モーダル・回転モーダル表示中はスキップ
       if (!studentNumModal.classList.contains('hidden') || !rotationModal.classList.contains('hidden')) {
         return;
       }
 
+      // テキスト入力欄にフォーカスがある場合の制御
       if (document.activeElement.tagName === 'INPUT' || document.activeElement.tagName === 'TEXTAREA' || document.activeElement.tagName === 'SELECT') {
+        if (appState.s2.isSingleZoomMode && e.key === 'Escape') {
+          e.preventDefault();
+          exitSingleZoomMode();
+        }
         return;
       }
 
@@ -3952,12 +3936,21 @@
       const maxPts = curQ.points;
       const pressedKey = e.key.toLowerCase();
 
+      // Spaceキーで「一覧表示 ⇄ 1枚フル拡大」をトグル切替
       if (e.code === 'Space') {
         e.preventDefault();
-        openModal();
+        toggleSingleZoomMode();
         return;
       }
 
+      // Escキーでも1枚フル拡大を解除して一覧へ戻る
+      if (e.key === 'Escape' && appState.s2.isSingleZoomMode) {
+        e.preventDefault();
+        exitSingleZoomMode();
+        return;
+      }
+
+      // 満点・0点キー（一覧・1枚拡大のどちらでも共通動作）
       if (pressedKey === appState.customKeys.correct) {
         e.preventDefault();
         assignS2Score(maxPts);
@@ -3969,6 +3962,7 @@
         return;
       }
 
+      // 前問・次問キー
       if (pressedKey === appState.customKeys.prevQ) {
         e.preventDefault();
         document.getElementById('s2-prev-q-btn').click();
@@ -3980,11 +3974,12 @@
         return;
       }
 
+      // 数字キーによる部分点
       if (/^[0-9]$/.test(e.key)) {
         e.preventDefault();
         const inputNum = parseInt(e.key, 10);
         if (inputNum <= maxPts) assignS2Score(inputNum);
-        else {
+        else if (!appState.s2.isSingleZoomMode) {
           const activeCard = document.querySelector('#s2-tiles-grid .student-card.active-card');
           if (activeCard) {
             activeCard.classList.add('bg-rose-900/60');
@@ -3994,6 +3989,14 @@
         return;
       }
 
+      // Delete / Backspace キーで採点を取り消して「未採点」に戻す
+      if (e.key === 'Delete' || e.key === 'Backspace') {
+        e.preventDefault();
+        assignS2Score(null);
+        return;
+      }
+
+      // 矢印キーでの生徒送り・戻り（一覧・1枚拡大のどちらでも共通動作）
       if (e.key === 'ArrowRight' || e.key === 'ArrowDown') { e.preventDefault(); moveS2Active(1); return; }
       if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') { e.preventDefault(); moveS2Active(-1); return; }
     });
@@ -4020,8 +4023,12 @@
       if (newIdx >= 0 && newIdx < appState.s2.students.length) {
         appState.s2.activeStudentIndex = newIdx;
         highlightS2ActiveCard();
+        refreshSingleZoomViewForCurrentStudent();
+      } else if (appState.s2.isSingleZoomMode) {
+        updateSingleViewHeader();
       }
     }
+
 
     function updateS2Progress() {
       if (appState.s2.students.length === 0 || appState.s2.questions.length === 0) return;
@@ -4040,31 +4047,78 @@
       renderS2Tiles();
     });
 
-    // ================= 13. 拡大モーダル制御 ＆ スタンプ描画エンジン =================
-    let modalTransform = { scale: 1, panX: 0, panY: 0, isDragging: false, startX: 0, startY: 0 };
-    let activeModalImage = null;
+    // ================= 13. 1枚フル拡大ビュー ＆ 左縦スタンプバー ＆ 設問別表示記憶 =================
+    let singleTransform = { scale: 1, panX: 0, panY: 0, isDragging: false, startX: 0, startY: 0 };
+    let activeSingleImage = null;
 
-    function updateModalHeaderStatus() {
+    // 1枚フル拡大モードのトグル切替
+    function toggleSingleZoomMode() {
+      if (appState.s2.isSingleZoomMode) {
+        exitSingleZoomMode();
+      } else {
+        enterSingleZoomMode();
+      }
+    }
+
+    // 1枚フル拡大モードへ入る
+    function enterSingleZoomMode() {
       const curQ = appState.s2.questions[appState.s2.currentQIndex];
       const student = appState.s2.students[appState.s2.activeStudentIndex];
       if (!student || !curQ) return;
 
-      modalTitle.textContent = `出席番号 ${student.studentNum}番 (${student.name}) - 設問 ${curQ.name}`;
+      appState.s2.isSingleZoomMode = true;
+      appState.s2.modalViewPage = curQ.page || 1;
 
-      // ユーザー割り当てキーをボタンバッジへ自動反映
-      const badgeCorrect = document.getElementById('modal-key-badge-correct');
-      const badgeWrong = document.getElementById('modal-key-badge-wrong');
-      if (badgeCorrect) badgeCorrect.textContent = formatKeyDisplay(appState.customKeys.correct);
-      if (badgeWrong) badgeWrong.textContent = formatKeyDisplay(appState.customKeys.wrong);
+      // 一覧グリッドを隠し、左縦スタンプバーと1枚フル拡大ビューを表示
+      s2GridContainer.classList.add('hidden');
+      s2LeftStampSidebar.classList.remove('hidden');
+      s2SingleZoomView.classList.remove('hidden');
+
+      updateSingleViewHeader();
+      renderSinglePageTabs();
+
+      requestAnimationFrame(() => {
+        setTimeout(() => {
+          prepareAndRenderSingleImage(true);
+        }, 40);
+      });
+    }
+
+    // 1枚フル拡大モードを終了して一覧グリッドへ戻る
+    function exitSingleZoomMode() {
+      appState.s2.isSingleZoomMode = false;
+      activeSingleImage = null;
+
+      s2SingleZoomView.classList.add('hidden');
+      s2LeftStampSidebar.classList.add('hidden');
+      s2GridContainer.classList.remove('hidden');
+
+      // 一覧側のアクティブカード位置を同期
+      renderS2Tiles();
+    }
+
+    // 1枚拡大ビューのヘッダー・ボタン・得点バッジ更新
+    function updateSingleViewHeader() {
+      const curQ = appState.s2.questions[appState.s2.currentQIndex];
+      const student = appState.s2.students[appState.s2.activeStudentIndex];
+      if (!student || !curQ) return;
+
+      singleViewTitle.textContent = `#${student.studentNum} ${student.name} （設問: ${curQ.name}）`;
 
       // 現在の得点バッジを更新
-      const badgeEl = document.getElementById('modal-current-score-badge');
+      const badgeEl = document.getElementById('single-current-score-badge');
       if (badgeEl) {
         badgeEl.innerHTML = createScoreBadgeHtml(student, curQ);
       }
 
-      // 部分点入力欄の最大値・現在値を同期
-      const partialInput = document.getElementById('modal-partial-score-input');
+      // 割り当てキーバッジを更新
+      const badgeCorrect = document.getElementById('single-key-badge-correct');
+      const badgeWrong = document.getElementById('single-key-badge-wrong');
+      if (badgeCorrect) badgeCorrect.textContent = formatKeyDisplay(appState.customKeys.correct);
+      if (badgeWrong) badgeWrong.textContent = formatKeyDisplay(appState.customKeys.wrong);
+
+      // 部分点入力欄の同期
+      const partialInput = document.getElementById('single-partial-score-input');
       if (partialInput) {
         partialInput.max = curQ.points;
         const curScore = appState.s2.currentStream === 1 ? student.scores1[curQ.id] : student.scores2[curQ.id];
@@ -4072,8 +4126,8 @@
       }
 
       // 前へ / 次へ ボタンの有効・無効制御
-      const btnPrev = document.getElementById('btn-modal-prev-student');
-      const btnNext = document.getElementById('btn-modal-next-student');
+      const btnPrev = document.getElementById('btn-single-prev-student');
+      const btnNext = document.getElementById('btn-single-next-student');
       if (btnPrev) {
         btnPrev.disabled = appState.s2.activeStudentIndex <= 0;
         btnPrev.classList.toggle('opacity-40', btnPrev.disabled);
@@ -4082,120 +4136,39 @@
         btnNext.disabled = appState.s2.activeStudentIndex >= appState.s2.students.length - 1;
         btnNext.classList.toggle('opacity-40', btnNext.disabled);
       }
-    }
 
-    function openModal() {
-      const curQ = appState.s2.questions[appState.s2.currentQIndex];
-      const student = appState.s2.students[appState.s2.activeStudentIndex];
-      if (!student || !curQ) return;
-
-      appState.s2.modalViewPage = curQ.page || 1;
-      updateModalHeaderStatus();
-
-      zoomModal.classList.remove('hidden');
-      renderModalPageTabs();
-
-      requestAnimationFrame(() => {
-        setTimeout(() => {
-          prepareAndRenderModalImage(true);
-        }, 50);
-      });
-    }
-
-    // モーダルを開いたまま前後の生徒へ切り替え
-    function switchStudentInModal(delta) {
-      const newIdx = appState.s2.activeStudentIndex + delta;
-      if (newIdx < 0 || newIdx >= appState.s2.students.length) return;
-
-      appState.s2.activeStudentIndex = newIdx;
-      highlightS2ActiveCard();
-
-      const curQ = appState.s2.questions[appState.s2.currentQIndex];
-      appState.s2.modalViewPage = curQ ? (curQ.page || 1) : 1;
-      updateModalHeaderStatus();
-      renderModalPageTabs();
-      prepareAndRenderModalImage(true);
-    }
-
-    // モーダル内で採点し、自動で次の生徒へ進める
-    function scoreInModalAndNext(score) {
-      const curQ = appState.s2.questions[appState.s2.currentQIndex];
-      const currentIdx = appState.s2.activeStudentIndex;
-      const student = appState.s2.students[currentIdx];
-      if (!student || !curQ) return;
-
-      if (appState.s2.currentStream === 1) student.scores1[curQ.id] = score;
-      else student.scores2[curQ.id] = score;
-
-      updateStudentTileScore(currentIdx);
-      updateS2Progress();
-      triggerAutoSave();
-
-      if (currentIdx + 1 < appState.s2.students.length) {
-        switchStudentInModal(1);
-      } else {
-        // 最後の生徒の場合は現在の表示を更新して完了を知らせる
-        updateModalHeaderStatus();
+      // 設問のズーム・位置記憶バッジの表示更新
+      const hasMemory = !!(appState.s2.questionViewMemory && appState.s2.questionViewMemory[curQ.id]);
+      if (singleViewMemoryBadge) {
+        if (hasMemory) singleViewMemoryBadge.classList.remove('hidden');
+        else singleViewMemoryBadge.classList.add('hidden');
       }
     }
 
-    // モーダル内ボタンのイベント登録
-    document.getElementById('btn-modal-prev-student').addEventListener('click', () => switchStudentInModal(-1));
-    document.getElementById('btn-modal-next-student').addEventListener('click', () => switchStudentInModal(1));
-
-    document.getElementById('btn-modal-score-correct').addEventListener('click', () => {
-      const curQ = appState.s2.questions[appState.s2.currentQIndex];
-      if (curQ) scoreInModalAndNext(curQ.points);
-    });
-
-    document.getElementById('btn-modal-score-wrong').addEventListener('click', () => {
-      scoreInModalAndNext(0);
-    });
-
-    document.getElementById('btn-modal-score-partial').addEventListener('click', () => {
-      const curQ = appState.s2.questions[appState.s2.currentQIndex];
-      const partialInput = document.getElementById('modal-partial-score-input');
-      if (!curQ || !partialInput) return;
-
-      const val = parseFloat(partialInput.value);
-      if (isNaN(val) || val < 0 || val > curQ.points) {
-        alert(`0 〜 ${curQ.points} の範囲で点数を入力してください。`);
-        partialInput.focus();
-        return;
-      }
-      scoreInModalAndNext(val);
-    });
-
-    document.getElementById('modal-partial-score-input').addEventListener('keydown', (e) => {
-      e.stopPropagation();
-      if (e.key === 'Enter') {
-        e.preventDefault();
-        document.getElementById('btn-modal-score-partial').click();
-      }
-    });
-
-    function renderModalPageTabs() {
-      modalPageTabs.innerHTML = '';
+    // 表裏ページ切り替えタブの描画
+    function renderSinglePageTabs() {
+      singlePageTabs.innerHTML = '';
       if (appState.s2.pagesPerStudent <= 1) return;
 
       for (let p = 1; p <= appState.s2.pagesPerStudent; p++) {
         const btn = document.createElement('button');
         const isCurrent = p === appState.s2.modalViewPage;
         const pageLabel = p === 1 ? 'P.1 (表)' : (p === 2 ? 'P.2 (裏)' : `P.${p}`);
-        btn.className = `px-2.5 py-1 rounded-lg font-bold transition text-xs ${
+        btn.className = `px-2.5 py-0.5 rounded font-bold transition text-xs ${
           isCurrent ? 'bg-indigo-600 text-white shadow' : 'text-slate-400 hover:text-white bg-slate-800'
         }`;
         btn.textContent = pageLabel;
         btn.onclick = () => {
           appState.s2.modalViewPage = p;
-          renderModalPageTabs();
-          prepareAndRenderModalImage(true);
+          renderSinglePageTabs();
+          prepareAndRenderSingleImage(true);
         };
-        modalPageTabs.appendChild(btn);
+        singlePageTabs.appendChild(btn);
       }
     }
 
-    function prepareAndRenderModalImage(shouldResetFocus = true) {
+    // 生徒画像の読み込みと描画開始
+    function prepareAndRenderSingleImage(useMemoryOrFocus = true) {
       const student = appState.s2.students[appState.s2.activeStudentIndex];
       if (!student) return;
 
@@ -4211,26 +4184,66 @@
         student.fullPageImgElements[pageIndex] = img;
       }
 
-      activeModalImage = img;
+      activeSingleImage = img;
+
+      const applyView = () => {
+        if (useMemoryOrFocus) {
+          applyQuestionViewOrDefault();
+        } else {
+          renderSingleZoomCanvas();
+        }
+      };
 
       if (img.complete && img.naturalWidth > 0) {
-        if (shouldResetFocus) resetModalViewToQuestion();
-        else renderModalZoomCanvas();
+        applyView();
       } else {
-        img.onload = () => {
-          if (shouldResetFocus) resetModalViewToQuestion();
-          else renderModalZoomCanvas();
-        };
+        img.onload = applyView;
       }
     }
 
-    function resetModalViewToQuestion() {
-      const img = activeModalImage;
+    // ★ 設問に記憶された表示位置・倍率があればそれを適用、なければデフォルトの設問フォーカス計算
+    function applyQuestionViewOrDefault() {
+      const curQ = appState.s2.questions[appState.s2.currentQIndex];
+      const isCurQPage = curQ && (curQ.page || 1) === appState.s2.modalViewPage;
+
+      if (isCurQPage && appState.s2.questionViewMemory && appState.s2.questionViewMemory[curQ.id]) {
+        const mem = appState.s2.questionViewMemory[curQ.id];
+        singleTransform.scale = mem.scale;
+        singleTransform.panX = mem.panX;
+        singleTransform.panY = mem.panY;
+        renderSingleZoomCanvas();
+      } else {
+        resetSingleViewToDefault(false);
+      }
+    }
+
+    // 現在のズーム・位置を「この設問の基準」として記憶する
+    function saveCurrentViewToQuestionMemory() {
+      const curQ = appState.s2.questions[appState.s2.currentQIndex];
+      if (!curQ) return;
+      if ((curQ.page || 1) !== appState.s2.modalViewPage) return;
+
+      appState.s2.questionViewMemory[curQ.id] = {
+        scale: singleTransform.scale,
+        panX: singleTransform.panX,
+        panY: singleTransform.panY
+      };
+      if (singleViewMemoryBadge) singleViewMemoryBadge.classList.remove('hidden');
+    }
+
+    // 設問フォーカス初期位置へ計算・リセット（clearMemory=true の場合は記憶も消去）
+    function resetSingleViewToDefault(clearMemory = true) {
+      const img = activeSingleImage;
       if (!img || !img.complete || img.naturalWidth === 0) return;
 
-      const vw = modalViewport.clientWidth || 800;
-      const vh = modalViewport.clientHeight || 500;
       const curQ = appState.s2.questions[appState.s2.currentQIndex];
+      if (clearMemory && curQ && appState.s2.questionViewMemory) {
+        delete appState.s2.questionViewMemory[curQ.id];
+        if (singleViewMemoryBadge) singleViewMemoryBadge.classList.add('hidden');
+      }
+
+      const vw = singleZoomViewport.clientWidth || 900;
+      const vh = singleZoomViewport.clientHeight || 550;
       const isCurQPage = curQ && (curQ.page || 1) === appState.s2.modalViewPage;
       const norm = isCurQPage && curQ.normalized ? curQ.normalized : { x: 0.1, y: 0.1, w: 0.35, h: 0.1 };
 
@@ -4240,38 +4253,93 @@
       const qPixelW = Math.max(50, norm.w * imgW);
       const qPixelH = Math.max(50, norm.h * imgH);
 
-      const targetScale = Math.min((vw * 0.75) / qPixelW, (vh * 0.75) / qPixelH, 2.8);
-      modalTransform.scale = Math.max(0.2, Math.min(3.5, targetScale));
+      const targetScale = Math.min((vw * 0.8) / qPixelW, (vh * 0.8) / qPixelH, 3.0);
+      singleTransform.scale = Math.max(0.2, Math.min(4.0, targetScale));
 
       const qCenterX = (norm.x + norm.w / 2) * imgW;
       const qCenterY = (norm.y + norm.h / 2) * imgH;
 
-      modalTransform.panX = Math.round(vw / 2 - qCenterX * modalTransform.scale);
-      modalTransform.panY = Math.round(vh / 2 - qCenterY * modalTransform.scale);
+      singleTransform.panX = Math.round(vw / 2 - qCenterX * singleTransform.scale);
+      singleTransform.panY = Math.round(vh / 2 - qCenterY * singleTransform.scale);
 
-      renderModalZoomCanvas();
+      renderSingleZoomCanvas();
     }
 
-    function fitModalViewToPaper() {
-      const img = activeModalImage;
+    // 用紙全体表示
+    function fitSingleViewToPaper() {
+      const img = activeSingleImage;
       if (!img || !img.complete || img.naturalWidth === 0) return;
 
-      const vw = modalViewport.clientWidth || 800;
-      const vh = modalViewport.clientHeight || 500;
+      const vw = singleZoomViewport.clientWidth || 900;
+      const vh = singleZoomViewport.clientHeight || 550;
       const imgW = img.naturalWidth;
       const imgH = img.naturalHeight;
 
       const scaleX = (vw - 40) / imgW;
       const scaleY = (vh - 40) / imgH;
-      modalTransform.scale = Math.min(scaleX, scaleY, 1.0);
-      modalTransform.panX = Math.round((vw - imgW * modalTransform.scale) / 2);
-      modalTransform.panY = Math.round((vh - imgH * modalTransform.scale) / 2);
+      singleTransform.scale = Math.min(scaleX, scaleY, 1.0);
+      singleTransform.panX = Math.round((vw - imgW * singleTransform.scale) / 2);
+      singleTransform.panY = Math.round((vh - imgH * singleTransform.scale) / 2);
 
-      renderModalZoomCanvas();
+      renderSingleZoomCanvas();
     }
 
-    btnModalResetView.onclick = resetModalViewToQuestion;
-    btnModalFitView.onclick = fitModalViewToPaper;
+    btnSingleResetView.onclick = () => resetSingleViewToDefault(true);
+    btnSingleFitPaper.onclick = fitSingleViewToPaper;
+    document.getElementById('btn-exit-single-zoom').onclick = exitSingleZoomMode;
+
+    // 1枚拡大ビュー内での生徒切替（moveS2Active や onS2QuestionChanged からも呼ばれる）
+    function refreshSingleZoomViewForCurrentStudent() {
+      if (!appState.s2.isSingleZoomMode) return;
+      const curQ = appState.s2.questions[appState.s2.currentQIndex];
+      appState.s2.modalViewPage = curQ ? (curQ.page || 1) : 1;
+      updateSingleViewHeader();
+      renderSinglePageTabs();
+      prepareAndRenderSingleImage(true);
+    }
+
+    document.getElementById('btn-single-prev-student').addEventListener('click', () => moveS2Active(-1));
+    document.getElementById('btn-single-next-student').addEventListener('click', () => moveS2Active(1));
+
+    // 1枚拡大ビュー下部の採点ボタン連携
+    document.getElementById('btn-single-score-correct').addEventListener('click', () => {
+      const curQ = appState.s2.questions[appState.s2.currentQIndex];
+      if (curQ) assignS2Score(curQ.points);
+    });
+
+    document.getElementById('btn-single-score-wrong').addEventListener('click', () => {
+      assignS2Score(0);
+    });
+
+    document.getElementById('btn-single-score-unmark').addEventListener('click', () => {
+      assignS2Score(null);
+    });
+
+
+    document.getElementById('btn-single-score-partial').addEventListener('click', () => {
+      const curQ = appState.s2.questions[appState.s2.currentQIndex];
+      const partialInput = document.getElementById('single-partial-score-input');
+      if (!curQ || !partialInput) return;
+
+      const val = parseFloat(partialInput.value);
+      if (isNaN(val) || val < 0 || val > curQ.points) {
+        alert(`0 〜 ${curQ.points} の範囲で点数を入力してください。`);
+        partialInput.focus();
+        return;
+      }
+      assignS2Score(val);
+    });
+
+    document.getElementById('single-partial-score-input').addEventListener('keydown', (e) => {
+      e.stopPropagation();
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        document.getElementById('btn-single-score-partial').click();
+      } else if (e.key === 'Escape') {
+        e.preventDefault();
+        exitSingleZoomMode();
+      }
+    });
 
     // スタンプの基準サイズ計算
     function getAnnotationSizePixels(sizeType, imgWidth) {
@@ -4281,7 +4349,7 @@
       return base;
     }
 
-    // スタンプ単体の描画関数（Canvas描画）
+    // スタンプ単体の描画関数（Canvas描画・返却PDF合成共通）
     function drawSingleAnnotation(ctx, annot, imgW, imgH) {
       const color = annot.color || '#dc2626';
       ctx.save();
@@ -4359,39 +4427,39 @@
       ctx.restore();
     }
 
-    // 拡大モーダル Canvas描画（用紙＋スタンプ＋設問枠）
-    function renderModalZoomCanvas() {
-      const img = activeModalImage;
+    // 1枚フル拡大キャンバス描画
+    function renderSingleZoomCanvas() {
+      const img = activeSingleImage;
       if (!img || !img.complete || img.naturalWidth === 0) return;
 
-      const vw = modalViewport.clientWidth || 800;
-      const vh = modalViewport.clientHeight || 500;
+      const vw = singleZoomViewport.clientWidth || 900;
+      const vh = singleZoomViewport.clientHeight || 550;
 
-      modalZoomCanvas.width = vw;
-      modalZoomCanvas.height = vh;
+      singleZoomCanvas.width = vw;
+      singleZoomCanvas.height = vh;
 
-      modalZoomCtx.clearRect(0, 0, vw, vh);
+      singleZoomCtx.clearRect(0, 0, vw, vh);
 
-      modalZoomCtx.save();
-      modalZoomCtx.translate(modalTransform.panX, modalTransform.panY);
-      modalZoomCtx.scale(modalTransform.scale, modalTransform.scale);
+      singleZoomCtx.save();
+      singleZoomCtx.translate(singleTransform.panX, singleTransform.panY);
+      singleZoomCtx.scale(singleTransform.scale, singleTransform.scale);
 
       // ① 用紙画像の描画
-      modalZoomCtx.fillStyle = '#ffffff';
-      modalZoomCtx.fillRect(0, 0, img.naturalWidth, img.naturalHeight);
-      modalZoomCtx.drawImage(img, 0, 0);
+      singleZoomCtx.fillStyle = '#ffffff';
+      singleZoomCtx.fillRect(0, 0, img.naturalWidth, img.naturalHeight);
+      singleZoomCtx.drawImage(img, 0, 0);
 
       // ② 生徒のスタンプ・書き込み描画
       const student = appState.s2.students[appState.s2.activeStudentIndex];
       if (student && student.annotations) {
         student.annotations.filter(a => a.page === appState.s2.modalViewPage).forEach(annot => {
-          drawSingleAnnotation(modalZoomCtx, annot, img.naturalWidth, img.naturalHeight);
+          drawSingleAnnotation(singleZoomCtx, annot, img.naturalWidth, img.naturalHeight);
         });
       }
 
       // ③ 直線ドラッグ中のリアルタイム描画
       if (appState.s2.stampState && appState.s2.stampState.isDrawingLine && appState.s2.stampState.lineStart && appState.s2.stampState.tempLineEnd) {
-        drawSingleAnnotation(modalZoomCtx, {
+        drawSingleAnnotation(singleZoomCtx, {
           type: 'line',
           x: appState.s2.stampState.lineStart.x,
           y: appState.s2.stampState.lineStart.y,
@@ -4402,7 +4470,7 @@
         }, img.naturalWidth, img.naturalHeight);
       }
 
-      // ④ 設問フォーカス枠の描画
+      // ④ 設問フォーカス枠のガイド描画
       const curQ = appState.s2.questions[appState.s2.currentQIndex];
       if (curQ && (curQ.page || 1) === appState.s2.modalViewPage && curQ.normalized) {
         const qx = curQ.normalized.x * img.naturalWidth;
@@ -4410,28 +4478,19 @@
         const qw = curQ.normalized.w * img.naturalWidth;
         const qh = curQ.normalized.h * img.naturalHeight;
 
-        modalZoomCtx.strokeStyle = '#6366f1';
-        modalZoomCtx.lineWidth = Math.max(3, Math.round(4 / modalTransform.scale));
-        modalZoomCtx.strokeRect(qx, qy, qw, qh);
+        singleZoomCtx.strokeStyle = 'rgba(99, 102, 241, 0.75)';
+        singleZoomCtx.lineWidth = Math.max(2, Math.round(3 / singleTransform.scale));
+        singleZoomCtx.strokeRect(qx, qy, qw, qh);
 
-        modalZoomCtx.fillStyle = 'rgba(99, 102, 241, 0.14)';
-        modalZoomCtx.fillRect(qx, qy, qw, qh);
-
-        modalZoomCtx.fillStyle = '#6366f1';
-        const fontSize = Math.max(16, Math.round(22 / modalTransform.scale));
-        modalZoomCtx.font = `bold ${fontSize}px sans-serif`;
-        modalZoomCtx.fillText(`設問: ${curQ.name} (${curQ.points}点)`, qx, Math.max(25, qy - 10));
+        singleZoomCtx.fillStyle = 'rgba(99, 102, 241, 0.08)';
+        singleZoomCtx.fillRect(qx, qy, qw, qh);
       }
 
-      modalZoomCtx.restore();
+      singleZoomCtx.restore();
     }
 
-    function closeModal() {
-      zoomModal.classList.add('hidden');
-      activeModalImage = null;
-    }
-
-// ツールバーのボタン切り替え設定
+    // 左縦スタンプバーのボタン切り替え設定
+    const singleTextStampBox = document.getElementById('single-text-stamp-box');
     document.querySelectorAll('.stamp-tool-btn').forEach(btn => {
       btn.addEventListener('click', () => {
         const tool = btn.dataset.tool;
@@ -4443,19 +4502,30 @@
           if (b.dataset.tool === 'hand') {
             b.classList.add('bg-slate-800', 'text-slate-300');
           } else {
-            b.classList.add('bg-slate-900', 'text-rose-400');
+            b.classList.add('bg-slate-800', 'text-rose-400');
           }
         });
 
-        btn.classList.remove('bg-slate-900', 'bg-slate-800', 'text-rose-400', 'text-slate-300');
+        btn.classList.remove('bg-slate-800', 'text-rose-400', 'text-slate-300');
         btn.classList.add('bg-indigo-600', 'text-white', 'shadow');
 
+        // 文字スタンプ選択時のみテキスト入力欄をヘッダーに表示
+        if (singleTextStampBox) {
+          if (tool === 'text') {
+            singleTextStampBox.classList.remove('hidden');
+            singleTextStampBox.classList.add('flex');
+          } else {
+            singleTextStampBox.classList.add('hidden');
+            singleTextStampBox.classList.remove('flex');
+          }
+        }
+
         if (tool === 'hand') {
-          modalViewport.classList.remove('cursor-crosshair');
-          modalViewport.classList.add('cursor-grab');
+          singleZoomViewport.classList.remove('cursor-crosshair');
+          singleZoomViewport.classList.add('cursor-grab');
         } else {
-          modalViewport.classList.remove('cursor-grab', 'cursor-grabbing');
-          modalViewport.classList.add('cursor-crosshair');
+          singleZoomViewport.classList.remove('cursor-grab', 'cursor-grabbing');
+          singleZoomViewport.classList.add('cursor-crosshair');
         }
       });
     });
@@ -4490,7 +4560,7 @@
       for (let i = student.annotations.length - 1; i >= 0; i--) {
         if (student.annotations[i].page === curPage) {
           student.annotations.splice(i, 1);
-          renderModalZoomCanvas();
+          renderSingleZoomCanvas();
           triggerAutoSave();
           break;
         }
@@ -4508,43 +4578,43 @@
         const curPage = appState.s2.modalViewPage;
         if (confirm(`P.${curPage} のすべてのスタンプ・書き込みを消去しますか？`)) {
           student.annotations = student.annotations.filter(a => a.page !== curPage);
-          renderModalZoomCanvas();
+          renderSingleZoomCanvas();
           triggerAutoSave();
         }
       });
     }
 
     // 画面座標を用紙の相対座標(0.0〜1.0)へ変換
-    function modalScreenToPaperCoords(clientX, clientY) {
-      const img = activeModalImage;
+    function singleScreenToPaperCoords(clientX, clientY) {
+      const img = activeSingleImage;
       if (!img || img.naturalWidth === 0) return { x: 0, y: 0 };
-      const rect = modalViewport.getBoundingClientRect();
+      const rect = singleZoomViewport.getBoundingClientRect();
       const screenX = clientX - rect.left;
       const screenY = clientY - rect.top;
-      const paperX = (screenX - modalTransform.panX) / modalTransform.scale;
-      const paperY = (screenY - modalTransform.panY) / modalTransform.scale;
+      const paperX = (screenX - singleTransform.panX) / singleTransform.scale;
+      const paperY = (screenY - singleTransform.panY) / singleTransform.scale;
       return {
         x: Math.max(0, Math.min(1, +(paperX / img.naturalWidth).toFixed(5))),
         y: Math.max(0, Math.min(1, +(paperY / img.naturalHeight).toFixed(5)))
       };
     }
 
-    // モーダル マウスイベント（移動 ＆ スタンプ配置）
-    modalViewport.addEventListener('mousedown', (e) => {
+    // 1枚フル拡大キャンバス マウスイベント（移動＋位置記憶 ＆ スタンプ配置）
+    singleZoomViewport.addEventListener('mousedown', (e) => {
       if (e.button !== 0) return;
       const tool = appState.s2.stampState ? appState.s2.stampState.currentTool : 'hand';
 
       if (tool === 'hand') {
-        modalTransform.isDragging = true;
-        modalTransform.startX = e.clientX - modalTransform.panX;
-        modalTransform.startY = e.clientY - modalTransform.panY;
-        modalViewport.classList.remove('cursor-grab');
-        modalViewport.classList.add('cursor-grabbing');
+        singleTransform.isDragging = true;
+        singleTransform.startX = e.clientX - singleTransform.panX;
+        singleTransform.startY = e.clientY - singleTransform.panY;
+        singleZoomViewport.classList.remove('cursor-grab');
+        singleZoomViewport.classList.add('cursor-grabbing');
         e.preventDefault();
         return;
       }
 
-      const pt = modalScreenToPaperCoords(e.clientX, e.clientY);
+      const pt = singleScreenToPaperCoords(e.clientX, e.clientY);
       const student = appState.s2.students[appState.s2.activeStudentIndex];
       if (!student) return;
       if (!student.annotations) student.annotations = [];
@@ -4563,49 +4633,46 @@
           color: '#dc2626',
           text: tool === 'text' ? appState.s2.stampState.customText : ''
         });
-        renderModalZoomCanvas();
+        renderSingleZoomCanvas();
         triggerAutoSave();
       }
     });
 
     window.addEventListener('mousemove', (e) => {
-      if (zoomModal.classList.contains('hidden')) return;
+      if (!appState.s2.isSingleZoomMode) return;
 
-      if (modalTransform.isDragging) {
-        modalTransform.panX = e.clientX - modalTransform.startX;
-        modalTransform.panY = e.clientY - modalTransform.startY;
-        renderModalZoomCanvas();
+      if (singleTransform.isDragging) {
+        singleTransform.panX = e.clientX - singleTransform.startX;
+        singleTransform.panY = e.clientY - singleTransform.startY;
+        renderSingleZoomCanvas();
+        saveCurrentViewToQuestionMemory(); // ★ 動かした位置を即座に記憶
         return;
       }
 
       if (appState.s2.stampState && appState.s2.stampState.isDrawingLine && appState.s2.stampState.lineStart) {
-        let pt = modalScreenToPaperCoords(e.clientX, e.clientY);
+        let pt = singleScreenToPaperCoords(e.clientX, e.clientY);
 
-        // Shiftキーで水平・垂直固定スナップ
         if (e.shiftKey) {
           const start = appState.s2.stampState.lineStart;
           const dx = Math.abs(pt.x - start.x);
           const dy = Math.abs(pt.y - start.y);
-          if (dx > dy) {
-            pt.y = start.y;
-          } else {
-            pt.x = start.x;
-          }
+          if (dx > dy) pt.y = start.y;
+          else pt.x = start.x;
         }
 
         appState.s2.stampState.tempLineEnd = pt;
-        renderModalZoomCanvas();
+        renderSingleZoomCanvas();
       }
     });
 
     window.addEventListener('mouseup', () => {
-      if (zoomModal.classList.contains('hidden')) return;
+      if (!appState.s2.isSingleZoomMode) return;
 
-      if (modalTransform.isDragging) {
-        modalTransform.isDragging = false;
-        modalViewport.classList.remove('cursor-grabbing');
+      if (singleTransform.isDragging) {
+        singleTransform.isDragging = false;
+        singleZoomViewport.classList.remove('cursor-grabbing');
         if (appState.s2.stampState && appState.s2.stampState.currentTool === 'hand') {
-          modalViewport.classList.add('cursor-grab');
+          singleZoomViewport.classList.add('cursor-grab');
         }
       }
 
@@ -4633,13 +4700,13 @@
         appState.s2.stampState.isDrawingLine = false;
         appState.s2.stampState.lineStart = null;
         appState.s2.stampState.tempLineEnd = null;
-        renderModalZoomCanvas();
+        renderSingleZoomCanvas();
       }
     });
 
     // Ctrl+Z で直前のスタンプを取り消し
     window.addEventListener('keydown', (e) => {
-      if (!zoomModal.classList.contains('hidden')) {
+      if (appState.s2.isSingleZoomMode) {
         if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') {
           e.preventDefault();
           undoLastStamp();
@@ -4647,19 +4714,21 @@
       }
     });
 
-    modalViewport.addEventListener('wheel', (e) => {
+    // マウスホイールでの拡大・縮小 ＆ 記憶保存
+    singleZoomViewport.addEventListener('wheel', (e) => {
       e.preventDefault();
       const zoomFactor = e.deltaY < 0 ? 1.15 : 0.87;
-      const rect = modalViewport.getBoundingClientRect();
+      const rect = singleZoomViewport.getBoundingClientRect();
       const mouseX = e.clientX - rect.left;
       const mouseY = e.clientY - rect.top;
 
-      const newScale = Math.max(0.15, Math.min(5.0, modalTransform.scale * zoomFactor));
-      modalTransform.panX = mouseX - (mouseX - modalTransform.panX) * (newScale / modalTransform.scale);
-      modalTransform.panY = mouseY - (mouseY - modalTransform.panY) * (newScale / modalTransform.scale);
-      modalTransform.scale = newScale;
+      const newScale = Math.max(0.15, Math.min(5.0, singleTransform.scale * zoomFactor));
+      singleTransform.panX = mouseX - (mouseX - singleTransform.panX) * (newScale / singleTransform.scale);
+      singleTransform.panY = mouseY - (mouseY - singleTransform.panY) * (newScale / singleTransform.scale);
+      singleTransform.scale = newScale;
 
-      renderModalZoomCanvas();
+      renderSingleZoomCanvas();
+      saveCurrentViewToQuestionMemory(); // ★ 変更した倍率・位置を即座に記憶
     }, { passive: false });
 
     // ================= 14. 出席番号確認モーダル =================
@@ -5141,15 +5210,31 @@
                   drawCtx.lineTo(markCenterX - sz, markCenterY + sz);
                   drawCtx.stroke();
                 } else {
-                  const sz = radius * 0.9;
+                  // 部分点：正三角形（△）の中に点数の数字を中央配置
+                  const triR = Math.max(radius * 1.15, 22);
+                  const topY = markCenterY - triR;
+                  const bottomY = markCenterY + triR * 0.75;
+                  const halfBase = triR * 1.05;
+
                   drawCtx.beginPath();
-                  drawCtx.moveTo(markCenterX - sz, markCenterY + sz);
-                  drawCtx.lineTo(markCenterX + sz, markCenterY - sz);
+                  drawCtx.moveTo(markCenterX, topY);
+                  drawCtx.lineTo(markCenterX + halfBase, bottomY);
+                  drawCtx.lineTo(markCenterX - halfBase, bottomY);
+                  drawCtx.closePath();
                   drawCtx.stroke();
 
-                  const fontSize = Math.max(20, Math.round(radius * 1.3));
+                  // 三角形の重心（中央やや下寄り）に数字を配置
+                  const scoreStr = `${score}`;
+                  const fontRatio = scoreStr.length >= 2 ? 0.72 : 0.9;
+                  const fontSize = Math.max(14, Math.round(triR * fontRatio));
                   drawCtx.font = `bold ${fontSize}px sans-serif`;
-                  drawCtx.fillText(`+${score}`, markCenterX + radius * 0.4, markCenterY + radius * 0.5);
+                  drawCtx.textAlign = 'center';
+                  drawCtx.textBaseline = 'middle';
+                  drawCtx.fillText(scoreStr, markCenterX, markCenterY + triR * 0.18);
+
+                  // 描画設定をリセット
+                  drawCtx.textAlign = 'start';
+                  drawCtx.textBaseline = 'alphabetic';
                 }
               }
             });
@@ -5222,7 +5307,7 @@
       setTimeout(() => {
         try {
           const exportData = {
-            version: "6.1",
+            version: "7.0",
             appName: "でじたる採点くん",
             createdAt: new Date().toISOString(),
             pagesPerStudent: appState.s1.pagesPerStudent,
