@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>でじたる採点くん Ver 5.0</title>
+  <title>でじたる採点くん Ver 6.0</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script>
@@ -111,7 +111,7 @@
         <i class="fa-solid fa-pen-ruler text-xs"></i>
       </div>
       <span class="font-bold text-sm tracking-wide text-white">でじたる採点くん</span>
-      <span class="text-[10px] bg-slate-800 text-slate-400 px-2 py-0.5 rounded font-mono">Ver 5.0</span>
+      <span class="text-[10px] bg-slate-800 text-slate-400 px-2 py-0.5 rounded font-mono">Ver 6.0</span>
       <span id="autosave-indicator" class="text-[10px] text-emerald-400 flex items-center space-x-1 ml-2">
         <i class="fa-solid fa-cloud-arrow-up"></i><span>自動保存済</span>
       </span>
@@ -868,10 +868,14 @@
       <div class="w-full flex flex-wrap justify-between items-center gap-2 mt-3 pt-2.5 border-t border-slate-800 px-1 shrink-0">
         <div class="flex items-center space-x-2">
           <button type="button" id="btn-modal-score-correct" class="px-4 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs rounded-lg shadow transition flex items-center space-x-1.5" title="満点をつけて次の生徒へ">
-            <i class="fa-solid fa-circle-check"></i><span>正解 (満点)</span>
+            <i class="fa-solid fa-circle-check"></i>
+            <span>正解 (満点)</span>
+            <kbd id="modal-key-badge-correct" class="ml-1 px-1.5 py-0.2 bg-emerald-800 border border-emerald-400/50 rounded text-[10px] font-mono">C</kbd>
           </button>
           <button type="button" id="btn-modal-score-wrong" class="px-4 py-1.5 bg-rose-600 hover:bg-rose-500 text-white font-bold text-xs rounded-lg shadow transition flex items-center space-x-1.5" title="0点をつけて次の生徒へ">
-            <i class="fa-solid fa-xmark"></i><span>不正解 (0点)</span>
+            <i class="fa-solid fa-xmark"></i>
+            <span>不正解 (0点)</span>
+            <kbd id="modal-key-badge-wrong" class="ml-1 px-1.5 py-0.2 bg-rose-800 border border-rose-400/50 rounded text-[10px] font-mono">X</kbd>
           </button>
           <div class="flex items-center space-x-1 bg-slate-800 px-2 py-1 rounded-lg border border-slate-700">
             <span class="text-[11px] text-slate-300 font-bold">部分点:</span>
@@ -3893,8 +3897,27 @@
           if (inputNum <= maxPts) scoreInModalAndNext(inputNum);
           return;
         }
-        if (e.key === 'ArrowRight') { e.preventDefault(); switchStudentInModal(1); return; }
-        if (e.key === 'ArrowLeft')  { e.preventDefault(); switchStudentInModal(-1); return; }
+        // 通常画面と同じく「→ / ↓」で次の生徒、「← / ↑」で前の生徒へ移動
+        if (e.key === 'ArrowRight' || e.key === 'ArrowDown') { e.preventDefault(); switchStudentInModal(1); return; }
+        if (e.key === 'ArrowLeft' || e.key === 'ArrowUp')    { e.preventDefault(); switchStudentInModal(-1); return; }
+
+        // ユーザー割り当ての設問切替キーにも対応
+        if (pressedKey === appState.customKeys.prevQ) {
+          e.preventDefault();
+          if (appState.s2.currentQIndex > 0) {
+            onS2QuestionChanged(appState.s2.currentQIndex - 1);
+            switchStudentInModal(0);
+          }
+          return;
+        }
+        if (pressedKey === appState.customKeys.nextQ) {
+          e.preventDefault();
+          if (appState.s2.currentQIndex < appState.s2.questions.length - 1) {
+            onS2QuestionChanged(appState.s2.currentQIndex + 1);
+            switchStudentInModal(0);
+          }
+          return;
+        }
         return;
       }
 
@@ -4009,6 +4032,12 @@
       if (!student || !curQ) return;
 
       modalTitle.textContent = `出席番号 ${student.studentNum}番 (${student.name}) - 設問 ${curQ.name}`;
+
+      // ユーザー割り当てキーをボタンバッジへ自動反映
+      const badgeCorrect = document.getElementById('modal-key-badge-correct');
+      const badgeWrong = document.getElementById('modal-key-badge-wrong');
+      if (badgeCorrect) badgeCorrect.textContent = formatKeyDisplay(appState.customKeys.correct);
+      if (badgeWrong) badgeWrong.textContent = formatKeyDisplay(appState.customKeys.wrong);
 
       // 現在の得点バッジを更新
       const badgeEl = document.getElementById('modal-current-score-badge');
