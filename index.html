@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>でじたる採点くん Ver 6.0</title>
+  <title>でじたる採点くん Ver 6.1</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script>
@@ -111,7 +111,7 @@
         <i class="fa-solid fa-pen-ruler text-xs"></i>
       </div>
       <span class="font-bold text-sm tracking-wide text-white">でじたる採点くん</span>
-      <span class="text-[10px] bg-slate-800 text-slate-400 px-2 py-0.5 rounded font-mono">Ver 6.0</span>
+      <span class="text-[10px] bg-slate-800 text-slate-400 px-2 py-0.5 rounded font-mono">Ver 6.1</span>
       <span id="autosave-indicator" class="text-[10px] text-emerald-400 flex items-center space-x-1 ml-2">
         <i class="fa-solid fa-cloud-arrow-up"></i><span>自動保存済</span>
       </span>
@@ -598,6 +598,13 @@
     <!-- Step 2 サブバー（★5段階タイルサイズ切替UI追加） -->
     <div class="h-8 bg-slate-850 border-b border-slate-700 flex items-center justify-between px-4 text-xs shrink-0">
       <div class="flex items-center space-x-3 text-[11px]">
+        <!-- 現在選択中のテスト名バッジ -->
+        <div class="flex items-center space-x-1 bg-indigo-950/90 border border-indigo-500/50 px-2 py-0.5 rounded text-indigo-200 font-bold shadow-sm">
+          <i class="fa-solid fa-folder-open text-[10px] text-indigo-400"></i>
+          <span id="s2-current-test-name" class="truncate max-w-[200px]">未選択</span>
+          <span class="text-indigo-400 font-normal text-[10px]">選択中</span>
+        </div>
+        <span class="text-slate-600">|</span>
         <div><span class="text-slate-400">設問: </span><span id="s2-current-q-name" class="font-bold text-indigo-300 font-mono">-</span></div>
         <div id="s2-current-stream-container" class="normal-mode-only flex items-center space-x-3 hidden">
           <span class="text-slate-600">|</span>
@@ -1747,8 +1754,18 @@
       await renderPortalTests();
     }
 
+    // 採点画面のサブバーに現在のテスト名を反映する
+    function updateCurrentTestNameDisplay() {
+      const nameEl = document.getElementById('s2-current-test-name');
+      if (!nameEl) return;
+      const testName = (appState.currentTestMeta && appState.currentTestMeta.name) ? appState.currentTestMeta.name : '未選択';
+      nameEl.textContent = testName;
+      nameEl.title = `${testName} 選択中`;
+    }
+
     // 採点ワークスペースを表示する
     function showGradingWorkspace() {
+      updateCurrentTestNameDisplay();
       viewPortal.classList.add('hidden');
       btnBackToPortal.classList.remove('hidden');
 
@@ -1957,6 +1974,7 @@
             appState.currentTestMeta.name = name;
             appState.currentTestMeta.class = testClass;
             appState.currentTestMeta.subject = subject;
+            updateCurrentTestNameDisplay();
           }
         }
         closeCreateTestModal();
@@ -5204,7 +5222,7 @@
       setTimeout(() => {
         try {
           const exportData = {
-            version: "6.0",
+            version: "6.1",
             appName: "でじたる採点くん",
             createdAt: new Date().toISOString(),
             pagesPerStudent: appState.s1.pagesPerStudent,
