@@ -229,8 +229,8 @@
 
       <form id="create-test-form" class="p-5 space-y-4 text-xs">
         <div>
-          <label class="block text-slate-300 font-bold mb-1">テスト名 / 考査名 <span class="text-rose-400">*</span></label>
-          <input type="text" id="new-test-name" required class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-white text-xs focus:border-indigo-500 outline-none" placeholder="例: 2026前期中間考査">
+          <label class="block text-slate-300 font-bold mb-1">テスト名 / 考査名 <span class="text-slate-400 font-normal text-[11px]">（空欄の場合は test001 等を自動設定）</span></label>
+          <input type="text" id="new-test-name" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-white text-xs focus:border-indigo-500 outline-none" placeholder="空欄のまま作成すると test001 になります">
         </div>
 
         <div class="grid grid-cols-2 gap-3">
@@ -770,8 +770,19 @@
   <div id="zoom-modal" class="fixed inset-0 bg-slate-950/85 backdrop-blur-sm z-50 flex flex-col items-center justify-center p-4 hidden">
     <div class="relative bg-slate-900 border border-slate-700 rounded-2xl p-4 shadow-2xl w-full max-w-5xl h-[85vh] flex flex-col overflow-hidden">
       <div class="w-full flex justify-between items-center mb-3 shrink-0">
-        <div class="flex items-center space-x-3">
-          <span id="modal-title" class="font-bold text-base text-indigo-300">出席番号 1番</span>
+        <div class="flex items-center space-x-2.5">
+          <!-- 前の生徒 / 次の生徒 切替ボタン -->
+          <div class="flex items-center bg-slate-800 rounded-lg border border-slate-700 p-0.5">
+            <button type="button" id="btn-modal-prev-student" class="px-2.5 py-1 hover:bg-slate-700 text-slate-200 rounded text-xs font-bold transition flex items-center space-x-1" title="前の生徒へ (←キー)">
+              <i class="fa-solid fa-chevron-left text-[10px] text-indigo-400"></i><span>前へ</span>
+            </button>
+            <span id="modal-title" class="font-bold text-sm text-indigo-300 px-3">出席番号 1番</span>
+            <button type="button" id="btn-modal-next-student" class="px-2.5 py-1 hover:bg-slate-700 text-slate-200 rounded text-xs font-bold transition flex items-center space-x-1" title="次の生徒へ (→キー)">
+              <span>次へ</span><i class="fa-solid fa-chevron-right text-[10px] text-indigo-400"></i>
+            </button>
+          </div>
+          <!-- 現在の得点ステータス表示 -->
+          <div id="modal-current-score-badge" class="text-xs font-bold"></div>
           <div id="modal-page-tabs" class="flex items-center bg-slate-800 p-0.5 rounded-lg border border-slate-700 space-x-1 text-xs"></div>
         </div>
         <div class="flex items-center space-x-2 text-xs">
@@ -853,9 +864,28 @@
         <canvas id="modal-zoom-canvas" class="block w-full h-full"></canvas>
       </div>
 
-      <div class="w-full flex justify-between items-center text-xs text-slate-400 mt-3 px-1 font-mono shrink-0">
-        <span>💡 ドラッグで移動 / ホイールで拡大縮小</span>
-        <span>Space または Esc で閉じます</span>
+      <!-- モーダル内 採点コントロールバー -->
+      <div class="w-full flex flex-wrap justify-between items-center gap-2 mt-3 pt-2.5 border-t border-slate-800 px-1 shrink-0">
+        <div class="flex items-center space-x-2">
+          <button type="button" id="btn-modal-score-correct" class="px-4 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs rounded-lg shadow transition flex items-center space-x-1.5" title="満点をつけて次の生徒へ">
+            <i class="fa-solid fa-circle-check"></i><span>正解 (満点)</span>
+          </button>
+          <button type="button" id="btn-modal-score-wrong" class="px-4 py-1.5 bg-rose-600 hover:bg-rose-500 text-white font-bold text-xs rounded-lg shadow transition flex items-center space-x-1.5" title="0点をつけて次の生徒へ">
+            <i class="fa-solid fa-xmark"></i><span>不正解 (0点)</span>
+          </button>
+          <div class="flex items-center space-x-1 bg-slate-800 px-2 py-1 rounded-lg border border-slate-700">
+            <span class="text-[11px] text-slate-300 font-bold">部分点:</span>
+            <input type="number" id="modal-partial-score-input" min="0" step="1" class="w-14 bg-slate-950 border border-slate-600 rounded px-1.5 py-0.5 text-white font-mono font-bold text-xs text-center outline-none focus:border-amber-500" placeholder="点数">
+            <button type="button" id="btn-modal-score-partial" class="px-2.5 py-0.5 bg-amber-600 hover:bg-amber-500 text-white font-bold text-xs rounded transition">
+              確定
+            </button>
+          </div>
+        </div>
+
+        <div class="text-[11px] text-slate-400 font-mono flex items-center space-x-3">
+          <span>💡 採点後は自動で次の生徒へ進みます</span>
+          <span>Space / Esc で閉じる</span>
+        </div>
       </div>
     </div>
   </div>
@@ -1867,13 +1897,33 @@
     createTestForm.addEventListener('submit', async (e) => {
       e.preventDefault();
 
-      const name = document.getElementById('new-test-name').value.trim();
+      let name = document.getElementById('new-test-name').value.trim();
       const testClass = document.getElementById('new-test-class').value.trim();
       const subject = document.getElementById('new-test-subject').value.trim();
 
-      if (!name) return;
-
       const metaList = await getTestsMetaList();
+
+      // 空欄の場合は test001, test002 ... を自動採番
+      if (!name) {
+        if (editingTestId) {
+          const existing = metaList.find(m => m.id === editingTestId);
+          name = existing ? existing.name : 'test001';
+        } else {
+          let maxNum = 0;
+          metaList.forEach(m => {
+            const match = (m.name || '').match(/^test(\d+)$/i);
+            if (match) {
+              const num = parseInt(match[1], 10);
+              if (num > maxNum) maxNum = num;
+            }
+          });
+          let nextNum = maxNum + 1;
+          while (metaList.some(m => (m.name || '').toLowerCase() === `test${String(nextNum).padStart(3, '0')}`)) {
+            nextNum++;
+          }
+          name = `test${String(nextNum).padStart(3, '0')}`;
+        }
+      }
 
       if (editingTestId) {
         // ★ 既存テストの編集保存
@@ -3808,11 +3858,47 @@
       if (appState.currentStep !== 2) return;
       if (appState.listeningKeyType) return;
 
-      if (!zoomModal.classList.contains('hidden') || !studentNumModal.classList.contains('hidden') || !rotationModal.classList.contains('hidden')) {
-        if (!zoomModal.classList.contains('hidden') && (e.code === 'Space' || e.key === 'Escape')) {
+      // 拡大モーダル表示中のキー操作（採点・生徒切替・閉じる）
+      if (!zoomModal.classList.contains('hidden')) {
+        if (document.activeElement.tagName === 'INPUT' || document.activeElement.tagName === 'TEXTAREA') {
+          if (e.key === 'Escape') {
+            e.preventDefault();
+            closeModal();
+          }
+          return;
+        }
+        if (e.code === 'Space' || e.key === 'Escape') {
           e.preventDefault();
           closeModal();
+          return;
         }
+        if (appState.s2.students.length === 0 || appState.s2.questions.length === 0) return;
+        const curQ = appState.s2.questions[appState.s2.currentQIndex];
+        const maxPts = curQ.points;
+        const pressedKey = e.key.toLowerCase();
+
+        if (pressedKey === appState.customKeys.correct) {
+          e.preventDefault();
+          scoreInModalAndNext(maxPts);
+          return;
+        }
+        if (pressedKey === appState.customKeys.wrong) {
+          e.preventDefault();
+          scoreInModalAndNext(0);
+          return;
+        }
+        if (/^[0-9]$/.test(e.key)) {
+          e.preventDefault();
+          const inputNum = parseInt(e.key, 10);
+          if (inputNum <= maxPts) scoreInModalAndNext(inputNum);
+          return;
+        }
+        if (e.key === 'ArrowRight') { e.preventDefault(); switchStudentInModal(1); return; }
+        if (e.key === 'ArrowLeft')  { e.preventDefault(); switchStudentInModal(-1); return; }
+        return;
+      }
+
+      if (!studentNumModal.classList.contains('hidden') || !rotationModal.classList.contains('hidden')) {
         return;
       }
 
@@ -3917,13 +4003,47 @@
     let modalTransform = { scale: 1, panX: 0, panY: 0, isDragging: false, startX: 0, startY: 0 };
     let activeModalImage = null;
 
-    function openModal() {
+    function updateModalHeaderStatus() {
       const curQ = appState.s2.questions[appState.s2.currentQIndex];
       const student = appState.s2.students[appState.s2.activeStudentIndex];
       if (!student || !curQ) return;
 
       modalTitle.textContent = `出席番号 ${student.studentNum}番 (${student.name}) - 設問 ${curQ.name}`;
+
+      // 現在の得点バッジを更新
+      const badgeEl = document.getElementById('modal-current-score-badge');
+      if (badgeEl) {
+        badgeEl.innerHTML = createScoreBadgeHtml(student, curQ);
+      }
+
+      // 部分点入力欄の最大値・現在値を同期
+      const partialInput = document.getElementById('modal-partial-score-input');
+      if (partialInput) {
+        partialInput.max = curQ.points;
+        const curScore = appState.s2.currentStream === 1 ? student.scores1[curQ.id] : student.scores2[curQ.id];
+        partialInput.value = (curScore !== null && curScore !== undefined) ? curScore : '';
+      }
+
+      // 前へ / 次へ ボタンの有効・無効制御
+      const btnPrev = document.getElementById('btn-modal-prev-student');
+      const btnNext = document.getElementById('btn-modal-next-student');
+      if (btnPrev) {
+        btnPrev.disabled = appState.s2.activeStudentIndex <= 0;
+        btnPrev.classList.toggle('opacity-40', btnPrev.disabled);
+      }
+      if (btnNext) {
+        btnNext.disabled = appState.s2.activeStudentIndex >= appState.s2.students.length - 1;
+        btnNext.classList.toggle('opacity-40', btnNext.disabled);
+      }
+    }
+
+    function openModal() {
+      const curQ = appState.s2.questions[appState.s2.currentQIndex];
+      const student = appState.s2.students[appState.s2.activeStudentIndex];
+      if (!student || !curQ) return;
+
       appState.s2.modalViewPage = curQ.page || 1;
+      updateModalHeaderStatus();
 
       zoomModal.classList.remove('hidden');
       renderModalPageTabs();
@@ -3934,6 +4054,78 @@
         }, 50);
       });
     }
+
+    // モーダルを開いたまま前後の生徒へ切り替え
+    function switchStudentInModal(delta) {
+      const newIdx = appState.s2.activeStudentIndex + delta;
+      if (newIdx < 0 || newIdx >= appState.s2.students.length) return;
+
+      appState.s2.activeStudentIndex = newIdx;
+      highlightS2ActiveCard();
+
+      const curQ = appState.s2.questions[appState.s2.currentQIndex];
+      appState.s2.modalViewPage = curQ ? (curQ.page || 1) : 1;
+      updateModalHeaderStatus();
+      renderModalPageTabs();
+      prepareAndRenderModalImage(true);
+    }
+
+    // モーダル内で採点し、自動で次の生徒へ進める
+    function scoreInModalAndNext(score) {
+      const curQ = appState.s2.questions[appState.s2.currentQIndex];
+      const currentIdx = appState.s2.activeStudentIndex;
+      const student = appState.s2.students[currentIdx];
+      if (!student || !curQ) return;
+
+      if (appState.s2.currentStream === 1) student.scores1[curQ.id] = score;
+      else student.scores2[curQ.id] = score;
+
+      updateStudentTileScore(currentIdx);
+      updateS2Progress();
+      triggerAutoSave();
+
+      if (currentIdx + 1 < appState.s2.students.length) {
+        switchStudentInModal(1);
+      } else {
+        // 最後の生徒の場合は現在の表示を更新して完了を知らせる
+        updateModalHeaderStatus();
+      }
+    }
+
+    // モーダル内ボタンのイベント登録
+    document.getElementById('btn-modal-prev-student').addEventListener('click', () => switchStudentInModal(-1));
+    document.getElementById('btn-modal-next-student').addEventListener('click', () => switchStudentInModal(1));
+
+    document.getElementById('btn-modal-score-correct').addEventListener('click', () => {
+      const curQ = appState.s2.questions[appState.s2.currentQIndex];
+      if (curQ) scoreInModalAndNext(curQ.points);
+    });
+
+    document.getElementById('btn-modal-score-wrong').addEventListener('click', () => {
+      scoreInModalAndNext(0);
+    });
+
+    document.getElementById('btn-modal-score-partial').addEventListener('click', () => {
+      const curQ = appState.s2.questions[appState.s2.currentQIndex];
+      const partialInput = document.getElementById('modal-partial-score-input');
+      if (!curQ || !partialInput) return;
+
+      const val = parseFloat(partialInput.value);
+      if (isNaN(val) || val < 0 || val > curQ.points) {
+        alert(`0 〜 ${curQ.points} の範囲で点数を入力してください。`);
+        partialInput.focus();
+        return;
+      }
+      scoreInModalAndNext(val);
+    });
+
+    document.getElementById('modal-partial-score-input').addEventListener('keydown', (e) => {
+      e.stopPropagation();
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        document.getElementById('btn-modal-score-partial').click();
+      }
+    });
 
     function renderModalPageTabs() {
       modalPageTabs.innerHTML = '';
