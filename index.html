@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>でじたる採点くん Ver 7.0</title>
+  <title>でじたる採点くん Ver 7.1</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script>
@@ -111,7 +111,7 @@
         <i class="fa-solid fa-pen-ruler text-xs"></i>
       </div>
       <span class="font-bold text-sm tracking-wide text-white">でじたる採点くん</span>
-      <span class="text-[10px] bg-slate-800 text-slate-400 px-2 py-0.5 rounded font-mono">Ver 7.0</span>
+      <span class="text-[10px] bg-slate-800 text-slate-400 px-2 py-0.5 rounded font-mono">Ver 7.1</span>
       <span id="autosave-indicator" class="text-[10px] text-emerald-400 flex items-center space-x-1 ml-2">
         <i class="fa-solid fa-cloud-arrow-up"></i><span>自動保存済</span>
       </span>
@@ -637,6 +637,9 @@
             <option value="all">全員分表示</option>
             <option value="unmarked">未採点のみ</option>
             <option value="marked">採点済みのみ</option>
+            <option value="correct">正解のみ</option>
+            <option value="wrong">不正解のみ</option>
+            <option value="partial">部分点のみ</option>
             <option value="mismatch" class="normal-mode-only hidden">系統不一致のみ</option>
           </select>
         </div>
@@ -3709,6 +3712,9 @@
 
         if (appState.s2.filter === 'unmarked' && isCurrentMarked) return;
         if (appState.s2.filter === 'marked' && !isCurrentMarked) return;
+        if (appState.s2.filter === 'correct' && !(isCurrentMarked && activeScore === curQ.points)) return;
+        if (appState.s2.filter === 'wrong' && !(isCurrentMarked && activeScore === 0)) return;
+        if (appState.s2.filter === 'partial' && !(isCurrentMarked && activeScore > 0 && activeScore < curQ.points)) return;
         if (appState.s2.filter === 'mismatch' && !isMismatch) return;
 
         const card = document.createElement('div');
@@ -5307,7 +5313,7 @@
       setTimeout(() => {
         try {
           const exportData = {
-            version: "7.0",
+            version: "7.1",
             appName: "でじたる採点くん",
             createdAt: new Date().toISOString(),
             pagesPerStudent: appState.s1.pagesPerStudent,
